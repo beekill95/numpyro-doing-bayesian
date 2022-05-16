@@ -38,8 +38,6 @@ def one_group(ranking_data: pd.DataFrame, ranks: 'list[str]'):
                     keepdims=True,
                 ))
 
-            print(i, probs[-1])
-
         # with numpyro.plate('Rank', nb_ranks) as rank_idx:
         #     # Sample threshold for each ordinal outcome.
         #     if rank_idx == 0:
@@ -68,6 +66,7 @@ def one_group(ranking_data: pd.DataFrame, ranks: 'list[str]'):
 
         # Finally, specify the observed outcome.
         probs = jnp.array(probs)
+        probs = probs / probs.sum()
         vote = ranking_data[idx]
         N = vote.sum()
-        numpyro.sample('obs', dist.Multinomial(N, probs), obs=vote)
+        numpyro.sample('obs', dist.MultinomialProbs(total_count=N, probs=probs.T), obs=vote)

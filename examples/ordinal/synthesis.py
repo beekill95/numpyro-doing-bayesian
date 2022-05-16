@@ -18,10 +18,12 @@
 # %autoreload 2
 
 import jax.numpy as jnp
+import jax.random as random
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
+from numpyro.infer import MCMC, NUTS
 import numpyro_glm.ordinal as glm_ordinal
 
 
@@ -71,3 +73,16 @@ numpyro.render_model(
     model_args=(jnp.array(data), ORDINAL_VALUES),
     render_params=True,
 )
+
+mcmc_key = random.PRNGKey(1234)
+kernel = NUTS(glm_ordinal.one_group)
+mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
+mcmc.run(mcmc_key, jnp.array(data), ORDINAL_VALUES)
+mcmc.print_summary()
+
+# +
+import numpyro.distributions as dist
+
+d = dist.MultinomialProbs(total_count=32, probs=jnp.array([[0.5, 0.2, 0.29, 0.1, 0.]]))
+d.sample(mcmc_key)
+print(jnp.array([[0.5, 0.2, 0.29, 0.1, 0.]]).T.shape)
