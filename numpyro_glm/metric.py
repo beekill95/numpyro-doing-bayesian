@@ -3,7 +3,7 @@ import numpyro
 import numpyro.distributions as dist
 
 
-def no_predictors(y: jnp.array):
+def one_group(y: jnp.array):
     n, = jnp.shape(y)
     data_mean = jnp.mean(y)
     data_std = jnp.std(y)
