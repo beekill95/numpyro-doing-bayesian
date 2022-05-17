@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
 from numpyro.infer import MCMC, NUTS
-import numpyro_glm.metric as glm_metric
+import numpyro_glm.metric.models as glm_metric
 from scipy.stats import norm
 
 # # Chapter 16: Metric-Predicted Variable on One or Two Groups
