@@ -131,3 +131,19 @@ kernel = NUTS(glm_metric.one_group_robust)
 mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
 mcmc.run(mcmc_key, jnp.array(y))
 mcmc.print_summary()
+
+fig = plots.plot_st_2(mcmc, y)
+
+# ### Smart Drug Group Data
+
+mcmc_key = random.PRNGKey(0)
+kernel = NUTS(glm_metric.one_group_robust)
+mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
+mcmc.run(mcmc_key, jnp.array(smart_group_data.Score.values))
+mcmc.print_summary()
+
+fig = plots.plot_st_2(
+    mcmc, smart_group_data.Score.values,
+    mean_comp_val=100,
+    sigma_comp_val=15,
+    effsize_comp_val=0)
