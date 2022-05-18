@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
 from numpyro.infer import MCMC, NUTS
+import numpyro_glm.utils.plots as uplots
 import numpyro_glm.metric.models as glm_metric
 import numpyro_glm.metric.plots as plots
 import pandas as pd
@@ -93,7 +94,9 @@ fig = plots.plot_st(
     effsize_comp_val=0,
 )
 
+# + [markdown] tags=[]
 # ## Outliers and Robust Estimation: $t$ Distribution
+# -
 
 # ### Robust Metric Model
 
@@ -147,3 +150,5 @@ fig = plots.plot_st_2(
     mean_comp_val=100,
     sigma_comp_val=15,
     effsize_comp_val=0)
+
+fig = uplots.plot_pairwise_scatter(mcmc, ['mean', 'sigma', 'nu'])
