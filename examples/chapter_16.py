@@ -26,12 +26,20 @@ from numpyro.infer import MCMC, NUTS
 import numpyro_glm.metric.models as glm_metric
 import numpyro_glm.metric.plots as plots
 import pandas as pd
+from scipy.stats import norm, t
 
 # # Chapter 16: Metric-Predicted Variable on One or Two Groups
 
 # ## Estimating Mean and Standard Deviation of a Normal distribution
-#
-# ### Create synthesis data.
+
+# ### Metric Model
+
+numpyro.render_model(
+    glm_metric.one_group,
+    model_args=(jnp.ones(5), ),
+    render_params=True)
+
+# ### Synthesis data
 
 # +
 MEAN = 5
@@ -45,19 +53,10 @@ fig, ax = plt.subplots()
 ax.hist(y, density=True, label='Histogram of $y$')
 xmin, xmax = ax.get_xlim()
 p = np.linspace(xmin, xmax, 1000)
-pdf = np.exp(-(p - MEAN)**2 / (2 * STD**2)) / (STD * np.sqrt(2 * np.pi))
-ax.plot(p, pdf, label='Normal PDF')
+ax.plot(p, norm.pdf(p, loc=MEAN, scale=STD), label='Normal PDF')
 ax.legend()
 fig.tight_layout()
 # -
-
-# ### Metric Model
-
-numpyro.render_model(
-    glm_metric.one_group,
-    model_args=(jnp.array(y),),
-    render_params=True
-)
 
 # Now, we'll try to apply the metric model on that data to see
 # if it can recover the parameter.
@@ -93,3 +92,42 @@ fig = plots.plot_st(
     std_comp_val=15,
     effsize_comp_val=0,
 )
+
+# ## Outliers and Robust Estimation: $t$ Distribution
+
+# ### Robust Metric Model
+
+numpyro.render_model(
+    glm_metric.one_group_robust,
+    model_args=(jnp.ones(5),),
+    render_params=True)
+
+# ### Synthesis Data
+
+# +
+MEAN = 5
+SIGMA = 3
+NORMALITY = 3
+N = 1000
+
+y = np.random.standard_t(NORMALITY, size=N) * SIGMA + MEAN
+
+# Plot the histogram and true PDF of normal distribution.
+fig, ax = plt.subplots()
+ax.hist(y, density=True, bins=100, label='Histogram of $y$')
+xmin, xmax = ax.get_xlim()
+p = np.linspace(xmin, xmax, 1000)
+ax.plot(p, t.pdf(p, loc=MEAN, scale=SIGMA, df=NORMALITY), label='Student-$t$ PDF')
+ax.plot(p, norm.pdf(p, loc=y.mean(), scale=y.std()), label='Normal PDF using\ndata mean and std')
+ax.legend()
+fig.tight_layout()
+# -
+
+# Using the robust metric model on our synthesis data
+# to see if it can recover the original parameters.
+
+mcmc_key = random.PRNGKey(0)
+kernel = NUTS(glm_metric.one_group_robust)
+mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
+mcmc.run(mcmc_key, jnp.array(y))
+mcmc.print_summary()

@@ -15,3 +15,18 @@ def one_group(y: jnp.array):
     # Observations.
     with numpyro.plate('obs', n) as idx:
         numpyro.sample('y', dist.Normal(mean, std), obs=y[idx])
+
+
+def one_group_robust(y: jnp.array):
+    n, = jnp.shape(y)
+    data_mean = jnp.mean(y)
+    data_std = jnp.std(y)
+
+    # Specify prior mean, scale and normality parameter.
+    mean = numpyro.sample('mean', dist.Normal(data_mean, 100 * data_std))
+    sigma = numpyro.sample('sigma', dist.Uniform(data_std / 1000, data_std * 1000))
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+
+    # Observations.
+    with numpyro.plate('obs', n) as idx:
+        numpyro.sample('y', dist.StudentT(nu, mean, sigma), obs=y[idx])
