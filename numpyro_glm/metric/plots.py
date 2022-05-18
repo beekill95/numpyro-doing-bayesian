@@ -5,15 +5,30 @@ import numpyro
 from scipy.stats import norm
 
 
-def plot_st(mcmc, y, figsize: 'tuple[int, int]' = (10, 10), figtitle: str = None):
+def plot_st(mcmc, y,
+            mean_comp_val: float = None, mean_ROPE: 'tuple[float, float]' = None,
+            std_comp_val: float = None, std_ROPE: 'tuple[float, float]' = None,
+            effsize_comp_val: float = None, effsize_ROPE: 'tuple[float, float]' = None,
+            point_estimate: str = 'mode',
+            HDI: float = 0.95,
+            n_posterior_curves: int = 20,
+            figsize: 'tuple[int, int]' = (10, 6), figtitle: str = None):
     idata = az.from_numpyro(mcmc)
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=figsize)
     fig.suptitle(figtitle)
 
     # Plot posterior mean.
     ax = axes[0, 0]
+    az.plot_posterior(
+        idata,
+        ref_val=mean_comp_val,
+        rope=mean_ROPE,
+        var_names=['mean'],
+        point_estimate=point_estimate,
+        kind='hist',
+        hdi_prob=HDI,
+        ax=ax)
     ax.set_title('Mean')
-    az.plot_posterior(idata, var_names=['mean'], point_estimate='mode', kind='hist', hdi_prob=0.95, ax=ax)
     ax.set_xlabel('$\mu$')
 
     # Plot data with posterior.
@@ -22,8 +37,10 @@ def plot_st(mcmc, y, figsize: 'tuple[int, int]' = (10, 10), figtitle: str = None
     ax.hist(y, density=True)
 
     # Plot some posterior distributions.
-    n_curves = 20
-    samples_idx = np.random.choice(len(idata.posterior.chain) * len(idata.posterior.draw), n_curves, replace=False)
+    samples_idx = np.random.choice(
+        len(idata.posterior.chain) * len(idata.posterior.draw),
+        n_posterior_curves,
+        replace=False)
     xmin, xmax = ax.get_xlim()
     x = np.linspace(xmin, xmax, 1000)
     for idx in samples_idx:
@@ -35,12 +52,33 @@ def plot_st(mcmc, y, figsize: 'tuple[int, int]' = (10, 10), figtitle: str = None
 
     # Plot standard deviation.
     ax = axes[1, 0]
+    az.plot_posterior(
+        idata,
+        ref_val=std_comp_val,
+        rope=std_ROPE,
+        var_names=['std'],
+        point_estimate=point_estimate,
+        kind='hist',
+        hdi_prob=HDI,
+        ax=ax)
     ax.set_title('Standard Deviation')
-    az.plot_posterior(idata, var_names=['std'], point_estimate='mode', kind='hist', hdi_prob=0.95, ax=ax)
     ax.set_xlabel('$\sigma$')
 
     # Plot effect size.
-    # TODO
+    ax = axes[1, 1]
+    if mean_comp_val is None:
+        ax.remove()
+    else:
+        az.plot_posterior(
+            (idata.posterior['mean'] - mean_comp_val) / idata.posterior['std'],
+            ref_val=effsize_comp_val,
+            rope=effsize_ROPE,
+            point_estimate=point_estimate,
+            kind='hist',
+            hdi_prob=HDI,
+            ax=ax)
+        ax.set_title('Effect Size')
+        ax.set_xlabel(f'$(\mu - {mean_comp_val}) / \sigma$')
 
     fig.tight_layout()
     return fig
