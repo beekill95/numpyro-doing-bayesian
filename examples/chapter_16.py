@@ -75,6 +75,7 @@ fig = plots.plot_st(mcmc, y)
 # ### Smart Group IQ
 
 iq_data = pd.read_csv('datasets/TwoGroupIQ.csv')
+iq_data['Group'] = iq_data['Group'].astype('category')
 smart_group_data = iq_data[iq_data.Group == 'Smart Drug']
 smart_group_data.describe()
 
@@ -121,7 +122,8 @@ ax.hist(y, density=True, bins=100, label='Histogram of $y$')
 xmin, xmax = ax.get_xlim()
 p = np.linspace(xmin, xmax, 1000)
 ax.plot(p, t.pdf(p, loc=MEAN, scale=SIGMA, df=NORMALITY), label='Student-$t$ PDF')
-ax.plot(p, norm.pdf(p, loc=y.mean(), scale=y.std()), label='Normal PDF using\ndata mean and std')
+ax.plot(p, norm.pdf(p, loc=y.mean(), scale=y.std()),
+        label='Normal PDF using\ndata mean and std')
 ax.legend()
 fig.tight_layout()
 # -
@@ -152,3 +154,10 @@ fig = plots.plot_st_2(
     effsize_comp_val=0)
 
 fig = uplots.plot_pairwise_scatter(mcmc, ['mean', 'sigma', 'nu'])
+
+# ## Two Groups
+
+mcmc_key = random.PRNGKey(0)
+kernel = NUTS(glm_metric.multi_groups_robust)
+mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
+# TODO
