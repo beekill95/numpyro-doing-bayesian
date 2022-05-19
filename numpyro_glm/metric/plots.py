@@ -84,6 +84,9 @@ def plot_st(mcmc, y,
 
 
 def plot_st_2(mcmc, y,
+              mean_coords: dict = None,
+              sigma_coords: dict = None,
+              nu_coords: dict = None,
               mean_comp_val: float = None, mean_ROPE: 'tuple[float, float]' = None,
               sigma_comp_val: float = None, sigma_ROPE: 'tuple[float, float]' = None,
               effsize_comp_val: float = None, effsize_ROPE: 'tuple[float, float]' = None,
@@ -99,6 +102,7 @@ def plot_st_2(mcmc, y,
     ax = axes[0, 0]
     az.plot_posterior(
         idata,
+        coords=mean_coords,
         ref_val=mean_comp_val,
         rope=mean_ROPE,
         var_names=['mean'],
@@ -122,10 +126,17 @@ def plot_st_2(mcmc, y,
     xmin, xmax = ax.get_xlim()
     x = np.linspace(xmin, xmax, 1000)
     for idx in samples_idx:
-        sample_mean = idata.posterior['mean'].values.flatten()[idx]
-        sample_sigma = idata.posterior['sigma'].values.flatten()[idx]
-        sample_nu = idata.posterior['nu'].values.flatten()[idx]
-        ax.plot(x, t.pdf(x, loc=sample_mean, scale=sample_sigma, df=sample_nu), c='#87ceeb')
+        sample_mean = (idata
+                       .posterior['mean']
+                       .sel(mean_coords).values.flatten()[idx])
+        sample_sigma = (idata
+                        .posterior['sigma']
+                        .sel(sigma_coords).values.flatten()[idx])
+        sample_nu = (idata
+                     .posterior['nu']
+                     .sel(nu_coords).values.flatten()[idx])
+        ax.plot(
+            x, t.pdf(x, loc=sample_mean, scale=sample_sigma, df=sample_nu), c='#87ceeb')
 
     ax.set_xlabel('y')
 
@@ -133,6 +144,7 @@ def plot_st_2(mcmc, y,
     ax = axes[1, 0]
     az.plot_posterior(
         idata,
+        coords=sigma_coords,
         ref_val=sigma_comp_val,
         rope=sigma_ROPE,
         var_names=['sigma'],
@@ -149,7 +161,8 @@ def plot_st_2(mcmc, y,
         ax.remove()
     else:
         az.plot_posterior(
-            (idata.posterior['mean'] - mean_comp_val) / idata.posterior['sigma'],
+            (idata.posterior['mean'] - mean_comp_val) /
+            idata.posterior['sigma'],
             ref_val=effsize_comp_val,
             rope=effsize_ROPE,
             point_estimate=point_estimate,
@@ -162,7 +175,7 @@ def plot_st_2(mcmc, y,
     # Plot normality parameter.
     ax = axes[2, 0]
     az.plot_posterior(
-        np.log(idata.posterior['nu']),
+        np.log(idata.posterior['nu'].sel(nu_coords)),
         point_estimate=point_estimate,
         kind='hist',
         hdi_prob=HDI,

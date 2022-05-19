@@ -14,7 +14,8 @@ def plot_text(text: str, ax: plt.Axes):
 def plot_pairwise_scatter(mcmc, variables: 'list[str]', figsize: 'tuple[int, int]' = (10, 10), figtitle: str = None):
     nb_variables = len(variables)
 
-    fig, axes = plt.subplots(nrows = nb_variables, ncols = nb_variables, figsize=figsize)
+    fig, axes = plt.subplots(
+        nrows=nb_variables, ncols=nb_variables, figsize=figsize)
     fig.suptitle(figtitle)
 
     idata = az.from_numpyro(mcmc)
@@ -40,3 +41,15 @@ def plot_pairwise_scatter(mcmc, variables: 'list[str]', figsize: 'tuple[int, int
 
     fig.tight_layout()
     return fig
+
+
+def plot_diagnostic(mcmc, variables: 'list[str]', detailed: bool = False):
+    idata = az.from_numpyro(mcmc)
+
+    for var in variables:
+        if not detailed:
+            az.plot_trace(idata, var_names=[var])
+        else:
+            print('WIP')
+
+    return idata
