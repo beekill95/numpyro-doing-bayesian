@@ -8,9 +8,9 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.13.8
 #   kernelspec:
-#     display_name: doing_bayes
+#     display_name: Python 3 (ipykernel)
 #     language: python
-#     name: doing_bayes
+#     name: python3
 # ---
 
 # %cd ..
@@ -160,4 +160,10 @@ fig = uplots.plot_pairwise_scatter(mcmc, ['mean', 'sigma', 'nu'])
 mcmc_key = random.PRNGKey(0)
 kernel = NUTS(glm_metric.multi_groups_robust)
 mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
-# TODO
+mcmc.run(
+    mcmc_key,
+    jnp.array(iq_data['Score'].values),
+    jnp.array(iq_data['Group'].cat.codes.values),
+    len(iq_data['Group'].cat.categories),
+)
+mcmc.print_summary()
