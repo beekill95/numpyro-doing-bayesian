@@ -119,10 +119,13 @@ def hierarchical_one_metric_predictor_multi_groups_robust(
     zb1_std = numpyro.sample('zb1_std', dist.Uniform(1e-3, 1e3))
 
     # Specify the distribution of zb0 and zb1.
-    zb0 = numpyro.sample(
-        'zb0', dist.Normal(zb0_mean, zb0_std).expand((nb_groups, )))
-    zb1 = numpyro.sample(
-        'zb1', dist.Normal(zb1_mean, zb1_std).expand((nb_groups, )))
+    # These priors are sampled in Normal(0, 1) space,
+    # and then multiply with mean and std to get Normal(mean, std)
+    # to prevent divergences in NUTS sampling.
+    zb0_ = numpyro.sample('zb0_', dist.Normal(0, 1).expand((nb_groups, )))
+    zb0 = numpyro.deterministic('zb0', zb0_ * zb0_std + zb0_mean)
+    zb1_ = numpyro.sample('zb1_', dist.Normal(0, 1).expand((nb_groups, )))
+    zb1 = numpyro.deterministic('zb1', zb1_ * zb1_std + zb1_mean)
 
     # Specify zsigma and normality priors.
     zsigma = numpyro.sample('zsigma', dist.Uniform(1e-3, 1e3))

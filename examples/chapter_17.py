@@ -80,3 +80,21 @@ mcmc.run(
 mcmc.print_summary()
 
 numpyro_glm.plot_diagnostic(mcmc, ['zb0', 'zb1', 'nu', 'zsigma', 'b0'])
+
+# ## Hierarchical Regression on Individuals within Groups
+
+hier_linear_reg_data = pd.read_csv('datasets/HierLinRegressData.csv')
+hier_linear_reg_data['Subj'] = hier_linear_reg_data['Subj'].astype('category')
+hier_linear_reg_data.describe()
+
+mcmc_key = random.PRNGKey(0)
+kernel = NUTS(glm_metric.hierarchical_one_metric_predictor_multi_groups_robust)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000)
+mcmc.run(
+    mcmc_key,
+    jnp.array(hier_linear_reg_data.Y.values),
+    jnp.array(hier_linear_reg_data.X.values),
+    jnp.array(hier_linear_reg_data.Subj.cat.codes.values),
+    len(hier_linear_reg_data.Subj.cat.categories),
+)
+mcmc.print_summary()
