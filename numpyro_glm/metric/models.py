@@ -144,3 +144,71 @@ def hierarchical_one_metric_predictor_multi_groups_robust(
     numpyro.deterministic(
         'b0_mean', zb0_mean * y_std + y_mean - zb1_mean * x_mean * y_std / x_std)
     numpyro.deterministic('sigma', zsigma * y_std)
+
+
+def hierarchical_quadtrend_one_metric_predictor_multi_groups_robust(
+        y: jnp.ndarray, x: jnp.ndarray, group: jnp.ndarray, nb_groups: int, y_noise: jnp.ndarray = None):
+    assert (jnp.shape(y)[0]
+            == jnp.shape(x)[0]
+            == jnp.shape(group)[0]
+            == jnp.shape(y_noise)[0])
+
+    n = jnp.shape(y)[0]
+    x_mean, y_mean = (jnp.mean(v) for v in [x, y])
+    x_std, y_std = (jnp.std(v) for v in [x, y])
+
+    if y_noise is not None:
+        y_noise_z = y_noise / jnp.mean(y_noise)
+    else:
+        y_noise_z = jnp.ones(n)
+
+    # Standardize data.
+    xz = (x - x_mean) / x_std
+    yz = (y - y_mean) / y_std
+
+    # Specify mean and sigma priors of b0_z, b1_z, and b2_z.
+    b0_z_mean = numpyro.sample('b0_z_mean', dist.Normal(0, 10))
+    b1_z_mean = numpyro.sample('b1_z_mean', dist.Normal(0, 10))
+    b2_z_mean = numpyro.sample('b2_z_mean', dist.Normal(0, 10))
+    b0_z_std = numpyro.sample('b0_z_std', dist.Uniform(1e-3, 1e3))
+    b1_z_std = numpyro.sample('b1_z_std', dist.Uniform(1e-3, 1e3))
+    b2_z_std = numpyro.sample('b2_z_std', dist.Uniform(1e-3, 1e3))
+
+    # Specify the distribution of b0_z, b1_z, and b2_z.
+    b0_z_ = numpyro.sample('b0_z_', dist.Normal(0, 1).expand((nb_groups, )))
+    b1_z_ = numpyro.sample('b1_z_', dist.Normal(0, 1).expand((nb_groups, )))
+    b2_z_ = numpyro.sample('b2_z_', dist.Normal(0, 1).expand((nb_groups, )))
+    b0_z = numpyro.deterministic('b0_z', b0_z_ * b0_z_std + b0_z_mean)
+    b1_z = numpyro.deterministic('b1_z', b1_z_ * b1_z_std + b1_z_mean)
+    b2_z = numpyro.deterministic('b2_z', b2_z_ * b2_z_std + b2_z_mean)
+
+    # Specify the priors of sigma and normality parameter.
+    sigma_z = numpyro.sample('sigma_z', dist.Uniform(1e-3, 1e3))
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+
+    # Observations.
+    with numpyro.plate('obs_z', n) as idx:
+        mean_z = (b0_z[group[idx]]
+                  + xz[idx] * b1_z[group[idx]]
+                  + xz[idx]**2 * b2_z[group[idx]])
+        numpyro.sample(
+            'yz_obs', dist.StudentT(nu, mean_z, y_noise_z * sigma_z), obs=yz[idx])
+
+    # Transform back to the original scale.
+    numpyro.deterministic('b2', b2_z * y_std / (x_std**2))
+    numpyro.deterministic(
+        'b1', b1_z * y_std / x_std - 2 * b2_z * x_mean * y_std / (x_std**2))
+    numpyro.deterministic(
+        'b0', (b0_z * y_std
+               + y_mean
+               - b1_z * x_mean * y_std / x_std
+               + b2_z * x_mean**2 * y_std / (x_std**2)))
+    numpyro.deterministic('b2_mean', b2_z_mean * y_std / (x_std**2))
+    numpyro.deterministic(
+        'b1_mean', b1_z_mean * y_std / x_std - 2 * b2_z_mean * x_mean * y_std / (x_std**2))
+    numpyro.deterministic(
+        'b0_mean', (b0_z_mean * y_std
+                    + y_mean
+                    - b1_z_mean * x_mean * y_std / x_std
+                    + b2_z_mean * x_mean**2 * y_std / (x_std**2)))
+    numpyro.deterministic('sigma', sigma_z * y_std)
