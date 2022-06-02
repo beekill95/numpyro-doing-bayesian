@@ -192,7 +192,7 @@ def hierarchical_quadtrend_one_metric_predictor_multi_groups_robust(
                   + xz[idx] * b1_z[group[idx]]
                   + xz[idx]**2 * b2_z[group[idx]])
         numpyro.sample(
-            'yz_obs', dist.StudentT(nu, mean_z, y_noise_z * sigma_z), obs=yz[idx])
+            'yz_obs', dist.StudentT(nu, mean_z, y_noise_z[idx] * sigma_z), obs=yz[idx])
 
     # Transform back to the original scale.
     numpyro.deterministic('b2', b2_z * y_std / (x_std**2))
