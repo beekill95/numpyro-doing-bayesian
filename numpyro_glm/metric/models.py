@@ -82,7 +82,7 @@ def one_metric_predictor_robust(y: jnp.ndarray, x: jnp.ndarray):
     xz = (x - mean_x) / std_x
     yz = (y - mean_y) / std_y
 
-    # Specify priors zb0, zb1, zsigma and normality paramter.
+    # Specify priors zb0, zb1, zsigma and normality parameter.
     zb0 = numpyro.sample('zb0', dist.Normal(0, 10))
     zb1 = numpyro.sample('zb1', dist.Normal(0, 10))
     zsigma = numpyro.sample('zsigma', dist.Uniform(1e-3, 1e+3))
@@ -98,6 +98,37 @@ def one_metric_predictor_robust(y: jnp.ndarray, x: jnp.ndarray):
     numpyro.deterministic(
         'b0', zb0 * std_y + mean_y - zb1 * mean_x * std_y / std_x)
     numpyro.deterministic('sigma', zsigma * std_y)
+
+
+def multi_metric_predictors_robust(y: jnp.ndarray, x: jnp.ndarray):
+    assert jnp.shape(y)[0] == jnp.shape(x)[0]
+    n = jnp.shape(y)[0]
+    n_preds = jnp.shape(x)[1]
+
+    # Standardize and normalize the data.
+    x_means = jnp.mean(x, axis=1)
+    x_stds = jnp.std(x, axis=1)
+    y_mean = jnp.mean(y)
+    y_std = jnp.std(y)
+    xz = (x - x_means) / x_stds
+    yz = (y - y_mean) / y_std
+
+    # Specify priors for coefficients, sigma and normality parameter.
+    zb0 = numpyro.sample('zb0', dist.Normal(0, 10))
+    zb_ = numpyro.sample('zb', dist.Normal(0, 10).expand((n_preds, )))
+    zsigma = numpyro.sample('zsigma', dist.Uniform(1e-3, 1e3))
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+
+    # Observations.
+    with numpyro.plate('zobs', n) as idx:
+        zmean = zb0 + jnp.dot(xz[idx], zb_)
+        numpyro.sample('yz', dist.StudentT(nu, zmean, zsigma), obs=yz)
+
+    # Transform back to the original scale.
+    numpyro.deterministic('b_', zb_ * y_std / x_stds)
+    numpyro.deterministic(
+        'b0', zb0 * y_std + y_mean - jnp.sum(zb_ * x_means / x_stds) * y_std)
+    numpyro.deterministic('sigma', zsigma * y_std)
 
 
 def hierarchical_one_metric_predictor_multi_groups_robust(

@@ -23,7 +23,6 @@ import jax.random as random
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import numpyro
 from numpyro.infer import MCMC, NUTS
 import numpyro_glm
 import numpyro_glm.metric.models as glm_metric
