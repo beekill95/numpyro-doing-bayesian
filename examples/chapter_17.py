@@ -95,7 +95,7 @@ mcmc.run(
     jnp.array(hier_linear_reg_data.Y.values),
     jnp.array(hier_linear_reg_data.X.values),
     jnp.array(hier_linear_reg_data.Subj.cat.codes.values),
-    len(hier_linear_reg_data.Subj.cat.categories),
+    hier_linear_reg_data.Subj.cat.categories.size,
 )
 mcmc.print_summary()
 
@@ -129,10 +129,11 @@ mcmc.run(
     jnp.array(income_data_3yr['MedianIncome'].values),
     jnp.array(income_data_3yr['FamilySize'].values),
     jnp.array(income_data_3yr['State'].cat.codes.values),
-    len(income_data_3yr['State'].cat.categories),
+    income_data_3yr['State'].cat.categories.size,
     jnp.array(income_data_3yr['SampErr'].values),
 )
 mcmc.print_summary()
+
 
 # +
 def choose_credible_parabola_parameters(idata, hdi=0.95, *, a='b0', b='b1', c='b2', n_curves=20, dim=None):
@@ -140,7 +141,6 @@ def choose_credible_parabola_parameters(idata, hdi=0.95, *, a='b0', b='b1', c='b
     Plot credible parabola ax^2 + bx + c = 0. 
     """
     def is_between(values, low, high):
-        print(low, high)
         return (values >= low) & (values <= high)
 
     posterior = idata.posterior
@@ -155,7 +155,8 @@ def choose_credible_parabola_parameters(idata, hdi=0.95, *, a='b0', b='b1', c='b
     bmask_in_hdi = is_between(b_posterior, *hdi_posterior[b].sel(dim).values)
     cmask_in_hdi = is_between(c_posterior, *hdi_posterior[c].sel(dim).values)
     params_in_hdi = amask_in_hdi & bmask_in_hdi & cmask_in_hdi
-    idx_in_hdi = np.arange(len(posterior.chain) * len(posterior.draw))[params_in_hdi.flatten()]
+    idx_in_hdi = np.arange(len(posterior.chain) *
+                           len(posterior.draw))[params_in_hdi.flatten()]
 
     # Then, randomly choose from these parameters to plot the results.
     for idx in np.random.choice(idx_in_hdi, n_curves, replace=False):
@@ -169,7 +170,8 @@ def choose_credible_parabola_parameters(idata, hdi=0.95, *, a='b0', b='b1', c='b
 idata = az.from_numpyro(
     mcmc,
     coords=dict(state=np.arange(len(income_data_3yr['State'].cat.categories))),
-    dims=dict(b0=['state'], b1=['state'], b2=['state']),
+    dims=dict(b0=['state'], b1=['state'], b2=['state'],
+              b0_z=['state'], b1_z=['state'], b2_z=['state'],),
 )
 
 n_posterior_curves = 20
@@ -184,14 +186,14 @@ fig
 # +
 fig, axes = plt.subplots(nrows=5, ncols=5, figsize=(20, 20))
 
-for state_idx, state, ax in zip(income_data_3yr['State'].cat.codes,
+for state_idx, state, ax in zip(range(income_data_3yr['State'].cat.categories.size),
                                 income_data_3yr['State'].cat.categories,
                                 axes.flatten()):
-    # Superimpose posterior curves.
+    # Plot posterior curves.
     for b0, b1, b2 in choose_credible_parabola_parameters(idata, a='b0', b='b1', c='b2', dim=dict(state=state_idx)):
         ax.plot(x, b0 + b1 * x + b2 * x**2, c='b')
 
-    # Plot state median income.
+    # Superimpose state median income.
     state_data = income_data_3yr[income_data_3yr['State'] == state]
     state_data = state_data.sort_values('FamilySize')
     ax.plot(state_data['FamilySize'], state_data['MedianIncome'], 'ko')
