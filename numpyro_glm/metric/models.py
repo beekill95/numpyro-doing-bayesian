@@ -106,8 +106,8 @@ def multi_metric_predictors_robust(y: jnp.ndarray, x: jnp.ndarray):
     n_preds = jnp.shape(x)[1]
 
     # Standardize and normalize the data.
-    x_means = jnp.mean(x, axis=1)
-    x_stds = jnp.std(x, axis=1)
+    x_means = jnp.mean(x, axis=0)
+    x_stds = jnp.std(x, axis=0)
     y_mean = jnp.mean(y)
     y_std = jnp.std(y)
     xz = (x - x_means) / x_stds
