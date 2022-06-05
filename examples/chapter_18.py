@@ -41,6 +41,9 @@ y_SAT = df_SAT.SATT.values
 x_SAT_names = ['Spend', 'PrcntTake']
 x_SAT = df_SAT[x_SAT_names].values
 
+df_SAT[x_SAT_names].corr()
+# -
+
 key = random.PRNGKey(0)
 model = NUTS(glm_metric.multi_metric_predictors_robust)
 mcmc = MCMC(model, num_warmup=1000, num_samples=20000)
@@ -92,3 +95,75 @@ for ith, ith_var in enumerate(to_plot_posteriors_SAT.keys()):
             ax.scatter(ith_var_data, jth_var_data)
 
 fig_SAT_pairwise_scatter.tight_layout()
+# -
+
+# ## Multiplicative Interaction of Metric Predictors
+
+# +
+df_SAT['Spend_Prcnt'] = df_SAT['Spend'] * df_SAT['PrcntTake']
+x_SAT_names = ['Spend', 'PrcntTake', 'Spend_Prcnt']
+x_SAT_multiplicative = df_SAT[x_SAT_names].values
+
+df_SAT[x_SAT_names].corr()
+# -
+
+key = random.PRNGKey(0)
+model = NUTS(glm_metric.multi_metric_predictors_robust)
+mcmc = MCMC(model, num_warmup=1000, num_samples=20000)
+mcmc.run(key, y_SAT, x_SAT_multiplicative)
+mcmc.print_summary()
+
+# +
+idata_SAT_multiplicative = az.from_numpyro(
+    mcmc,
+    coords=dict(predictors=[0, 1, 2]),
+    dims=dict(b_=['predictors']))
+posterior_SAT_multiplicative = idata_SAT_multiplicative.posterior
+
+fig_SAT_multiplicative_posteriors, axes = plt.subplots(
+    nrows=2, ncols=3, figsize=(12, 8))
+to_plot_posteriors_SAT_multiplicative = {
+    'Intercept': posterior_SAT_multiplicative['b0'].values.flatten(),
+    'Spend Coeff': posterior_SAT_multiplicative['b_'].sel(dict(predictors=0)).values.flatten(),
+    'PrcntTake Coeff': posterior_SAT_multiplicative['b_'].sel(dict(predictors=1)).values.flatten(),
+    'Spend_Prcnt Coeff': posterior_SAT_multiplicative['b_'].sel(dict(predictors=2)).values.flatten(),
+    'Scale': posterior_SAT_multiplicative['sigma'].values.flatten(),
+    'Log Normality': np.log(posterior_SAT_multiplicative['nu'].values.flatten()),
+}
+
+for ax, (title, values) in zip(axes.flatten(), to_plot_posteriors_SAT_multiplicative.items()):
+    az.plot_posterior(values, point_estimate='mode', hdi_prob=0.95, ax=ax)
+    ax.set_title(title)
+
+fig_SAT_multiplicative_posteriors.tight_layout()
+
+# +
+fig_SAT_slopes, axes = plt.subplots(nrows=2, figsize=(12, 8))
+
+# Spend as a function of Percent Take.
+ax = axes[0]
+percent_take = np.linspace(4, 80, 20)
+spend_slopes = (to_plot_posteriors_SAT_multiplicative['Spend Coeff'].reshape(-1, 1)
+                + to_plot_posteriors_SAT_multiplicative['Spend_Prcnt Coeff'].reshape(-1, 1) * percent_take.reshape(1, -1))
+spend_hdis = az.hdi(spend_slopes, hdi_prob=0.95)
+spend_medians = np.median(spend_slopes, axis=0)
+
+ax.errorbar(percent_take, spend_medians, yerr=spend_hdis[:, 0] - spend_hdis[:, 1])
+ax.set_title('Spend Slope vs. Percent Take')
+ax.set_xlabel('Percent Take')
+ax.set_ylabel('Spend Slope')
+
+# Percent Take as a function of Spend.
+ax = axes[1]
+spend = np.linspace(3, 10, 20)
+prcnt_slopes = (to_plot_posteriors_SAT_multiplicative['PrcntTake Coeff'].reshape(-1, 1)
+                + to_plot_posteriors_SAT_multiplicative['Spend_Prcnt Coeff'].reshape(-1, 1) * spend.reshape(1, -1))
+prcnt_hdis = az.hdi(prcnt_slopes, hdi_prob=0.95)
+prcnt_medians = np.median(prcnt_slopes, axis=0)
+
+ax.errorbar(spend, prcnt_medians, yerr=prcnt_hdis[:, 0] - prcnt_hdis[:, 1])
+ax.set_title('Percent Take Slope vs. Spend')
+ax.set_xlabel('Spend')
+ax.set_ylabel('Percent Take Slope')
+
+fig_SAT_slopes.tight_layout()
