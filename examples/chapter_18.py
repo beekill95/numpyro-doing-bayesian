@@ -148,10 +148,12 @@ spend_slopes = (to_plot_posteriors_SAT_multiplicative['Spend Coeff'].reshape(-1,
 spend_hdis = az.hdi(spend_slopes, hdi_prob=0.95)
 spend_medians = np.median(spend_slopes, axis=0)
 
-ax.errorbar(percent_take, spend_medians, yerr=spend_hdis[:, 0] - spend_hdis[:, 1])
+ax.errorbar(percent_take, spend_medians,
+            yerr=spend_hdis[:, 0] - spend_hdis[:, 1], fmt='o', label='Spend Slope Median')
 ax.set_title('Spend Slope vs. Percent Take')
 ax.set_xlabel('Percent Take')
 ax.set_ylabel('Spend Slope')
+ax.legend()
 
 # Percent Take as a function of Spend.
 ax = axes[1]
@@ -161,9 +163,102 @@ prcnt_slopes = (to_plot_posteriors_SAT_multiplicative['PrcntTake Coeff'].reshape
 prcnt_hdis = az.hdi(prcnt_slopes, hdi_prob=0.95)
 prcnt_medians = np.median(prcnt_slopes, axis=0)
 
-ax.errorbar(spend, prcnt_medians, yerr=prcnt_hdis[:, 0] - prcnt_hdis[:, 1])
+ax.errorbar(spend, prcnt_medians,
+            yerr=prcnt_hdis[:, 0] - prcnt_hdis[:, 1], fmt='o', label='Percent Take Slope Median')
 ax.set_title('Percent Take Slope vs. Spend')
 ax.set_xlabel('Spend')
 ax.set_ylabel('Percent Take Slope')
+ax.legend()
 
 fig_SAT_slopes.tight_layout()
+# -
+
+# ## Shrinkage of Regression Coefficients
+# ### Without Shrinkage Model
+
+
+# +
+def normalize(values):
+    return (values - np.mean(values)) / np.std(values)
+
+
+nb_random_preds = 12
+
+df_SAT_random = df_SAT.copy()
+for i in range(nb_random_preds):
+    df_SAT_random[f'xRand{i}'] = normalize(
+        np.random.normal(0, 1, size=len(df_SAT)))
+
+df_SAT_random.describe()
+
+# +
+x_SAT_random_cols = ['Spend', 'PrcntTake',
+                     *(f'xRand{i}' for i in range(nb_random_preds))]
+
+x_SAT_random = df_SAT_random[x_SAT_random_cols].values
+y_SAT_random = df_SAT_random['SATT'].values
+
+key = random.PRNGKey(0)
+kernel = NUTS(glm_metric.multi_metric_predictors_robust)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000)
+mcmc.run(key, y_SAT_random, x_SAT_random)
+mcmc.print_summary()
+
+# +
+idata_SAT_random = az.from_numpyro(
+    mcmc,
+    coords=dict(predictors=list(range(14))),
+    dims=dict(b_=['predictors']))
+posterior_SAT_random = idata_SAT_random.posterior
+
+fig_SAT_random_posteriors, axes = plt.subplots(
+    nrows=4, ncols=3, figsize=(12, 8))
+to_plot_posteriors_SAT_random = {
+    'Intercept': posterior_SAT_random['b0'].values.flatten(),
+    'Spend Coeff': posterior_SAT_random['b_'].sel(dict(predictors=0)).values.flatten(),
+    'PrcntTake Coeff': posterior_SAT_random['b_'].sel(dict(predictors=1)).values.flatten(),
+    **{f'xRand{i} Coeff': posterior_SAT_random['b_'].sel(dict(predictors=i + 2)).values.flatten()
+        for i in [0, 1, 2, 9, 10, 11]},
+    'Scale': posterior_SAT_random['sigma'].values.flatten(),
+    'Log Normality': np.log(posterior_SAT_random['nu'].values.flatten()),
+}
+
+for ax, (title, values) in zip(axes.flatten(), to_plot_posteriors_SAT_random.items()):
+    az.plot_posterior(values, point_estimate='mode', hdi_prob=0.95, ax=ax)
+    ax.set_title(title)
+
+fig_SAT_random_posteriors.tight_layout()
+# -
+
+# ### Shrinkage Model
+
+key = random.PRNGKey(0)
+kernel = NUTS(glm_metric.multi_metric_predictors_robust_with_shrinkage)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000)
+mcmc.run(key, y_SAT_random, x_SAT_random)
+mcmc.print_summary()
+
+# +
+idata_SAT_random_shrinkage = az.from_numpyro(
+    mcmc,
+    coords=dict(predictors=list(range(14))),
+    dims=dict(b_=['predictors']))
+posterior_SAT_random_shrinkage = idata_SAT_random_shrinkage.posterior
+
+fig_SAT_random_posteriors_shrinkage, axes = plt.subplots(
+    nrows=4, ncols=3, figsize=(12, 8))
+to_plot_posteriors_SAT_random_shrinkage = {
+    'Intercept': posterior_SAT_random_shrinkage['b0'].values.flatten(),
+    'Spend Coeff': posterior_SAT_random_shrinkage['b_'].sel(dict(predictors=0)).values.flatten(),
+    'PrcntTake Coeff': posterior_SAT_random_shrinkage['b_'].sel(dict(predictors=1)).values.flatten(),
+    **{f'xRand{i} Coeff': posterior_SAT_random_shrinkage['b_'].sel(dict(predictors=i + 2)).values.flatten()
+        for i in [0, 1, 2, 9, 10, 11]},
+    'Scale': posterior_SAT_random_shrinkage['sigma'].values.flatten(),
+    'Log Normality': np.log(posterior_SAT_random_shrinkage['nu'].values.flatten()),
+}
+
+for ax, (title, values) in zip(axes.flatten(), to_plot_posteriors_SAT_random_shrinkage.items()):
+    az.plot_posterior(values, point_estimate='mode', hdi_prob=0.95, ax=ax)
+    ax.set_title(title)
+
+fig_SAT_random_posteriors_shrinkage.tight_layout()
