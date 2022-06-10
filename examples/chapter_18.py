@@ -23,7 +23,7 @@ import jax.random as random
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from numpyro.infer import MCMC, NUTS
+from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs, HMCECS
 import numpyro_glm
 import numpyro_glm.metric.models as glm_metric
 from scipy.stats import pearsonr
@@ -262,3 +262,60 @@ for ax, (title, values) in zip(axes.flatten(), to_plot_posteriors_SAT_random_shr
     ax.set_title(title)
 
 fig_SAT_random_posteriors_shrinkage.tight_layout()
+# -
+
+# ## Variable Selection
+
+# +
+x_SAT_all_names = ['Spend', 'StuTeaRat', 'Salary', 'PrcntTake']
+x_SAT_all = df_SAT[x_SAT_all_names].values
+
+key = random.PRNGKey(0)
+kernel = DiscreteHMCGibbs(
+    NUTS(glm_metric.multi_metric_predictors_robust_with_selection), modified=True)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=40000)
+mcmc.run(key, y_SAT, x_SAT_all)
+mcmc.print_summary()
+
+# +
+idata_SAT_all_with_selection = az.from_numpyro(
+    mcmc,
+    coords=dict(predictors=list(range(4))),
+    dims=dict(b_=['predictors'], zb=['predictors'], delta=['predictors']),
+)
+posterior_SAT_all_with_selection = idata_SAT_all_with_selection.posterior
+
+mask = (posterior_SAT_all_with_selection['delta'].sel(predictors=0).values
+        & posterior_SAT_all_with_selection['delta'].sel(predictors=3).values)
+mask = mask.astype(bool)
+
+fig, axes = plt.subplots(ncols=3)
+
+ax = axes[0]
+az.plot_posterior(
+    posterior_SAT_all_with_selection['b0'].values[mask],
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax,
+)
+ax.set_title('Intercept')
+
+ax = axes[1]
+az.plot_posterior(
+    posterior_SAT_all_with_selection['b_'].sel(predictors=0).values[mask],
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax,
+)
+ax.set_title('Spend')
+
+ax = axes[2]
+az.plot_posterior(
+    posterior_SAT_all_with_selection['b_'].sel(predictors=3).values[mask],
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax,
+)
+ax.set_title('PrcntTake')
+
+fig.tight_layout()

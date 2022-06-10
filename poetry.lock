@@ -296,6 +296,27 @@ unicode = ["unicodedata2 (>=14.0.0)"]
 woff = ["zopfli (>=0.1.4)", "brotlicffi (>=0.8.0)", "brotli (>=1.0.1)"]
 
 [[package]]
+name = "funsor"
+version = "0.4.3"
+description = "A tensor-like library for functions and distributions"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+makefun = "*"
+multipledispatch = "*"
+numpy = ">=1.7"
+opt-einsum = ">=2.3.2"
+typing-extensions = "*"
+
+[package.extras]
+dev = ["black", "flake8", "isort (>=5.0)", "nbsphinx", "pandas", "pillow (==8.2.0)", "pytest (==4.3.1)", "pytest-xdist (==1.27.0)", "scipy", "sphinx (>=2.0)", "sphinx-gallery", "sphinx-rtd-theme", "torchvision (>=0.12.0)"]
+jax = ["numpyro (>=0.7.0)", "jax (>=0.2.13)", "jaxlib (>=0.1.65)"]
+test = ["black", "flake8", "isort (>=5.0)", "pandas", "pillow (==8.2.0)", "pyro-api (>=0.1.2)", "pytest (==4.3.1)", "pytest-xdist (==1.27.0)", "requests", "scipy", "torchvision (>=0.12.0)"]
+torch = ["pyro-ppl (>=1.8.0)", "torch (>=1.11.0)"]
+
+[[package]]
 name = "graphviz"
 version = "0.20"
 description = "Simple Python interface for Graphviz"
@@ -654,6 +675,14 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
+
+[[package]]
+name = "makefun"
+version = "1.13.1"
+description = "Small library to dynamically create python functions."
+category = "main"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "markdown-it-py"
@@ -1454,7 +1483,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "36eb021468e2f4be8096af9658d79a6db91b4501cfb98a79871e5874535a133e"
+content-hash = "97aa2cd2ef9c6d9c7008faf403ad02f64a9d29c4ce3bcba77a0e63de5c0ea1eb"
 
 [metadata.files]
 absl-py = [
@@ -1669,6 +1698,10 @@ fonttools = [
     {file = "fonttools-4.33.3-py3-none-any.whl", hash = "sha256:f829c579a8678fa939a1d9e9894d01941db869de44390adb49ce67055a06cc2a"},
     {file = "fonttools-4.33.3.zip", hash = "sha256:c0fdcfa8ceebd7c1b2021240bd46ef77aa8e7408cf10434be55df52384865f8e"},
 ]
+funsor = [
+    {file = "funsor-0.4.3-py3-none-any.whl", hash = "sha256:4a47e46e502b1e9c0645e0ac092eefac9929070e9cd2c6c7efb0b2325123d4c0"},
+    {file = "funsor-0.4.3.tar.gz", hash = "sha256:d6b58ab42c64de96917664424e107e9f0e8414121f1ab1d76dbe87d23ce9c68e"},
+]
 graphviz = [
     {file = "graphviz-0.20-py3-none-any.whl", hash = "sha256:62c5f48bcc534a45b4588c548ff75e419c1f1f3a33d31a91796ae80a7f581e4a"},
     {file = "graphviz-0.20.zip", hash = "sha256:76bdfb73f42e72564ffe9c7299482f9d72f8e6cb8d54bce7b48ab323755e9ba5"},
@@ -1800,6 +1833,10 @@ kiwisolver = [
     {file = "kiwisolver-1.4.2-pp37-pypy37_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0e8afdf533b613122e4bbaf3c1e42c2a5e9e2d1dd3a0a017749a7658757cb377"},
     {file = "kiwisolver-1.4.2-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:42f6ef9b640deb6f7d438e0a371aedd8bef6ddfde30683491b2e6f568b4e884e"},
     {file = "kiwisolver-1.4.2.tar.gz", hash = "sha256:7f606d91b8a8816be476513a77fd30abe66227039bd6f8b406c348cb0247dcc9"},
+]
+makefun = [
+    {file = "makefun-1.13.1-py2.py3-none-any.whl", hash = "sha256:f10ea6e570d06e84d5488dd109cc09a3127ebbdc0696ddb7bfc234263ab2ac26"},
+    {file = "makefun-1.13.1.tar.gz", hash = "sha256:985bb8b670ffbbb95d2a8aa996d318e6e9a3f26fc6f3ef2da93ebdf8f9c616bf"},
 ]
 markdown-it-py = [
     {file = "markdown-it-py-2.1.0.tar.gz", hash = "sha256:cf7e59fed14b5ae17c0006eff14a2d9a00ed5f3a846148153899a0224e2c07da"},

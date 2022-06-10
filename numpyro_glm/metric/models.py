@@ -166,6 +166,43 @@ def multi_metric_predictors_robust_with_shrinkage(y: jnp.ndarray, x: jnp.ndarray
     numpyro.deterministic('sigma', zsigma * y_std)
 
 
+def multi_metric_predictors_robust_with_selection(y: jnp.ndarray, x: jnp.ndarray):
+    assert jnp.shape(y)[0] == jnp.shape(x)[0]
+    n = jnp.shape(y)[0]
+    n_preds = jnp.shape(x)[1]
+
+    # Standardize and normalize the data.
+    x_means = jnp.mean(x, axis=0)
+    x_stds = jnp.std(x, axis=0)
+    y_mean = jnp.mean(y)
+    y_std = jnp.std(y)
+    xz = (x - x_means) / x_stds
+    yz = (y - y_mean) / y_std
+
+    # Specify inclusion parameters.
+    included = numpyro.sample('delta', dist.Bernoulli(0.5).expand((n_preds, )))
+
+    sigma_b_ = numpyro.sample('sigmab', dist.Gamma(1, 1))
+
+    # Specify priors for coefficients, sigma and normality parameter.
+    zb0 = numpyro.sample('zb0', dist.Normal(0, 2))
+    # zb_ = numpyro.sample('zb', dist.Normal(0, 2).expand((n_preds, )))
+    zb_ = numpyro.sample('zb_', dist.StudentT(1, 0, sigma_b_).expand((n_preds, )))
+    zsigma = numpyro.sample('zsigma', dist.Uniform(1e-3, 1e3))
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+
+    # Observations.
+    with numpyro.plate('zobs', n) as idx:
+        zmean = zb0 + jnp.dot(xz[idx], zb_ * included)
+        numpyro.sample('yz', dist.StudentT(nu, zmean, zsigma), obs=yz)
+
+    # Transform back to the original scale.
+    numpyro.deterministic('b_', included * zb_ * y_std / x_stds)
+    numpyro.deterministic(
+        'b0', zb0 * y_std + y_mean - jnp.sum(included * zb_ * x_means / x_stds) * y_std)
+    numpyro.deterministic('sigma', zsigma * y_std)
+
+
 def hierarchical_one_metric_predictor_multi_groups_robust(
         y: jnp.ndarray, x: jnp.ndarray, group: jnp.ndarray, nb_groups: int):
     assert jnp.shape(y)[0] == jnp.shape(x)[0] == jnp.shape(group)[0]
