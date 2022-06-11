@@ -182,13 +182,13 @@ def multi_metric_predictors_robust_with_selection(y: jnp.ndarray, x: jnp.ndarray
     # Specify inclusion parameters.
     included = numpyro.sample('delta', dist.Bernoulli(0.5).expand((n_preds, )))
 
-    sigma_b_ = numpyro.sample('sigmab', dist.Gamma(1, 1))
+    sigma_b_ = numpyro.sample('sigmab', dist.Gamma(1.1051, 0.1051))
 
     # Specify priors for coefficients, sigma and normality parameter.
     zb0 = numpyro.sample('zb0', dist.Normal(0, 2))
     # zb_ = numpyro.sample('zb', dist.Normal(0, 2).expand((n_preds, )))
     zb_ = numpyro.sample('zb_', dist.StudentT(1, 0, sigma_b_).expand((n_preds, )))
-    zsigma = numpyro.sample('zsigma', dist.Uniform(1e-3, 1e3))
+    zsigma = numpyro.sample('zsigma', dist.Uniform(1e-5, 10))
     nu = numpyro.sample('nu', dist.Exponential(1. / 30))
 
     # Observations.

@@ -18,6 +18,7 @@
 # %autoreload 2
 
 import arviz as az
+from functools import reduce
 import jax.numpy as jnp
 import jax.random as random
 import pandas as pd
@@ -285,37 +286,63 @@ idata_SAT_all_with_selection = az.from_numpyro(
 )
 posterior_SAT_all_with_selection = idata_SAT_all_with_selection.posterior
 
-mask = (posterior_SAT_all_with_selection['delta'].sel(predictors=0).values
-        & posterior_SAT_all_with_selection['delta'].sel(predictors=3).values)
-mask = mask.astype(bool)
 
-fig, axes = plt.subplots(ncols=3)
+def plot_selected_model_posteriors(predictors):
+    PREDICTORS_NAME = {i: name for i, name in enumerate(x_SAT_all_names)}
 
-ax = axes[0]
-az.plot_posterior(
-    posterior_SAT_all_with_selection['b0'].values[mask],
-    point_estimate='mode',
-    hdi_prob=0.95,
-    ax=ax,
-)
-ax.set_title('Intercept')
+    # Mask to differentiate which coefficients values should be included
+    # in the posterior plot.
+    mask = reduce(
+        lambda acc, p: acc & (posterior_SAT_all_with_selection['delta'].sel(
+            predictors=p).values == (1 if p in predictors else 0)),
+        list(PREDICTORS_NAME.keys())[1:],
+        posterior_SAT_all_with_selection['delta'].sel(predictors=0).values == (1 if 0 in predictors else 0))
+    mask = mask.astype(bool)
 
-ax = axes[1]
-az.plot_posterior(
-    posterior_SAT_all_with_selection['b_'].sel(predictors=0).values[mask],
-    point_estimate='mode',
-    hdi_prob=0.95,
-    ax=ax,
-)
-ax.set_title('Spend')
+    # Calculate the model's probability.
+    model_prob = mask.sum() / np.prod(mask.shape)
 
-ax = axes[2]
-az.plot_posterior(
-    posterior_SAT_all_with_selection['b_'].sel(predictors=3).values[mask],
-    point_estimate='mode',
-    hdi_prob=0.95,
-    ax=ax,
-)
-ax.set_title('PrcntTake')
+    # Create figure.
+    fig, axes = plt.subplots(
+        ncols=len(PREDICTORS_NAME.keys()) + 1, figsize=(15, 4))
+    fig.suptitle(f'Model Prob = {model_prob:.3f}')
+    axes = axes.flatten()
 
-fig.tight_layout()
+    # Plot the posterior of the intercept.
+    ax = axes[0]
+    az.plot_posterior(
+        posterior_SAT_all_with_selection['b0'].values[mask],
+        point_estimate='mode',
+        hdi_prob=0.95,
+        ax=ax)
+    ax.set_title('Intercept')
+
+    # Plot the posterior of the coefficients.
+    for predictor, ax in zip(PREDICTORS_NAME.keys(), axes[1:]):
+        if predictor in predictors:
+            az.plot_posterior(
+                posterior_SAT_all_with_selection['b_'].sel(
+                    predictors=predictor).values[mask],
+                point_estimate='mode',
+                hdi_prob=0.95,
+                ax=ax)
+            ax.set_title(PREDICTORS_NAME[predictor])
+        else:
+            ax.remove()
+
+    fig.tight_layout()
+
+
+models_to_plot = [
+    [0, 3],
+    [3],
+    [2, 3],
+    [1, 2, 3],
+    [0, 2, 3],
+    [0, 1, 3],
+    [1, 3],
+    [0, 1, 2, 3],
+]
+
+for model in models_to_plot:
+    plot_selected_model_posteriors(model)
