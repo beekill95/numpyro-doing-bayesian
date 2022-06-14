@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
+from numpyro_glm.utils import dist as dist_utils
 
 
 def one_group(y: jnp.ndarray):
@@ -187,7 +188,8 @@ def multi_metric_predictors_robust_with_selection(y: jnp.ndarray, x: jnp.ndarray
     # Specify priors for coefficients, sigma and normality parameter.
     zb0 = numpyro.sample('zb0', dist.Normal(0, 2))
     # zb_ = numpyro.sample('zb', dist.Normal(0, 2).expand((n_preds, )))
-    zb_ = numpyro.sample('zb_', dist.StudentT(1, 0, sigma_b_).expand((n_preds, )))
+    zb_ = numpyro.sample('zb_', dist.StudentT(
+        1, 0, sigma_b_).expand((n_preds, )))
     zsigma = numpyro.sample('zsigma', dist.Uniform(1e-5, 10))
     nu = numpyro.sample('nu', dist.Exponential(1. / 30))
 
@@ -315,3 +317,46 @@ def hierarchical_quadtrend_one_metric_predictor_multi_groups_robust(
                     - b1_z_mean * x_mean * y_std / x_std
                     + b2_z_mean * x_mean**2 * y_std / (x_std**2)))
     numpyro.deterministic('sigma', sigma_z * y_std)
+
+
+def one_nominal_predictor(y: jnp.ndarray, x: jnp.ndarray, nb_groups: int):
+    """
+    Bayesian model as explained in Chapter 19, Section 19.3, Figure 19.2
+
+    Parameters
+    ----------
+    y: jnp.ndarray
+        Metric predicted.
+    x: jnp.ndarray
+        Nominal predictor, integer values show which group does the data belong to.
+    nb_groups: int
+        Number of different groups existed in `x`.
+    """
+    assert y.shape[0] == x.shape[0]
+    assert x.ndim == 1
+
+    nb_obs = y.shape[0]
+
+    # Calculate data statistics.
+    y_mean = jnp.mean(y)
+    y_std = jnp.std(y)
+
+    # Specify priors.
+    a0 = numpyro.sample('a0', dist.Normal(y_mean, y_std * 5))
+
+    a_sigma = numpyro.sample(
+        'a_sigma', dist_utils.gammaDistFromModeStd(y_std / 2, 2 * y_std))
+    a_ = numpyro.sample('a_', dist.Normal(0, a_sigma).expand((nb_groups, )))
+
+    ySigma = numpyro.sample('ySigma', dist.Uniform(y_std / 100, y_std * 10))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        mean = a0 + a_[x[idx]]
+        numpyro.sample('y', dist.Normal(mean, ySigma), obs=y[idx])
+
+    # Transform to the actual intercept and coefficients
+    # by imposing sum-to-zero constraints on `a_`.
+    m = a0 + a_
+    b0 = numpyro.deterministic('b0', jnp.mean(m))
+    numpyro.deterministic('b_', m - b0)
