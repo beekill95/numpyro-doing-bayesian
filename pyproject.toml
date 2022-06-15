@@ -21,6 +21,7 @@ seaborn = "^0.11.2"
 autopep8 = "^1.6.0"
 jupyterlab = "^3.4.2"
 jupytext = "^1.13.8"
+ipywidgets = "^7.7.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
