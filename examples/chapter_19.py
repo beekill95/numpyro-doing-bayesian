@@ -29,7 +29,7 @@ from numpyro.infer import MCMC, NUTS
 import numpyro_glm.metric.models as glm_metric
 import pandas as pd
 import seaborn as sns
-from scipy.stats import norm
+from scipy.stats import norm, t
 
 numpyro.set_host_device_count(4)
 # -
@@ -226,3 +226,111 @@ fig.tight_layout()
 # -
 
 _ = plot_contrasts(idata_met, contrasts, figsize=(15, 6))
+
+# ## Heterogeneous Variances and Robustness against Outliers
+
+nonhomo_df = pd.read_csv('datasets/NonhomogVarData.csv')
+nonhomo_df['Group'] = nonhomo_df['Group'].astype('category')
+nonhomo_df.info()
+
+sns.scatterplot(x='Group', y='Y', data=nonhomo_df)
+
+# ### Homogeneous Model
+
+kernel = NUTS(glm_metric.one_nominal_predictor)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(nonhomo_df['Y'].values),
+    grp=jnp.array(nonhomo_df['Group'].cat.codes.values),
+    nb_groups=nonhomo_df['Group'].cat.categories.size,
+)
+mcmc.print_summary()
+
+# +
+idata_hom = az.from_numpyro(
+    mcmc,
+    coords=dict(Group=nonhomo_df['Group'].cat.categories.values),
+    dims=dict(b_grp=['Group']))
+posterior_hom = idata_hom.posterior
+
+b0 = posterior_hom['b0'].values.flatten()
+y_sigma = posterior_hom['y_sigma'].values.flatten()
+
+fig, ax = plt.subplots()
+sns.scatterplot(x='Group', y='Y', data=nonhomo_df, ax=ax)
+ax.set_title(f'Homogeneous model Pred. Post. Dist.')
+
+n_curves = 20
+for gid, group in enumerate(nonhomo_df['Group'].cat.categories):
+    curve_indices = np.random.choice(
+        posterior_hom.draw.size * posterior_hom.chain.size, n_curves, replace=False)
+
+    b_grp = posterior_hom['b_grp'].sel(Group=group).values.flatten()
+
+    for idx in curve_indices:
+        mean = b0[idx] + b_grp[idx]
+        sigma = y_sigma[idx]
+        rv = norm(mean, sigma)
+
+        yrange = np.linspace(rv.ppf(0.01), rv.ppf(0.99), 1000)
+        xpdf = rv.pdf(yrange)
+
+        # Scale pdf to be superimposed on scatterplot.
+        xpdf = xpdf * 0.75 / np.max(xpdf)
+
+        # Plot the resulting posterior dist.
+        ax.plot(gid - xpdf, yrange, c='b', alpha=0.1)
+
+fig.tight_layout()
+# -
+
+# ### Heterogeneous Model
+
+kernel = NUTS(glm_metric.one_nominal_predictor_het_var_robust)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(nonhomo_df['Y'].values),
+    grp=jnp.array(nonhomo_df['Group'].cat.codes.values),
+    nb_groups=nonhomo_df['Group'].cat.categories.size,
+)
+mcmc.print_summary()
+
+# +
+idata_het = az.from_numpyro(
+    mcmc,
+    coords=dict(Group=nonhomo_df['Group'].cat.categories.values),
+    dims=dict(b_grp=['Group'], y_sigma=['Group']))
+posterior_het = idata_het.posterior
+
+b0 = posterior_het['b0'].values.flatten()
+nu = posterior_het['nu'].values.flatten()
+
+fig, ax = plt.subplots()
+sns.scatterplot(x='Group', y='Y', data=nonhomo_df, ax=ax)
+ax.set_title(f'Heterogeneous model Pred. Post. Dist.')
+
+n_curves = 20
+for gid, group in enumerate(nonhomo_df['Group'].cat.categories):
+    curve_indices = np.random.choice(
+        posterior_het.draw.size * posterior_het.chain.size, n_curves, replace=False)
+
+    b_grp = posterior_het['b_grp'].sel(Group=group).values.flatten()
+    y_sigma = posterior_het['y_sigma'].sel(Group=group).values.flatten()
+
+    for idx in curve_indices:
+        mean = b0[idx] + b_grp[idx]
+        sigma = y_sigma[idx]
+        rv = t(nu[idx], mean, sigma)
+
+        yrange = np.linspace(rv.ppf(0.01), rv.ppf(0.99), 1000)
+        xpdf = rv.pdf(yrange)
+
+        # Scale pdf to be superimposed on scatterplot.
+        xpdf = xpdf * 0.75 / np.max(xpdf)
+
+        # Plot the resulting posterior dist.
+        ax.plot(gid - xpdf, yrange, c='b', alpha=0.1)
+
+fig.tight_layout()

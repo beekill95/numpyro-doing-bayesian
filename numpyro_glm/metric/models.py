@@ -319,7 +319,7 @@ def hierarchical_quadtrend_one_metric_predictor_multi_groups_robust(
     numpyro.deterministic('sigma', sigma_z * y_std)
 
 
-def one_nominal_predictor(y: jnp.ndarray, x: jnp.ndarray, nb_groups: int):
+def one_nominal_predictor(y: jnp.ndarray, grp: jnp.ndarray, nb_groups: int):
     """
     Bayesian model as explained in Chapter 19, Section 19.3, Figure 19.2
 
@@ -327,13 +327,13 @@ def one_nominal_predictor(y: jnp.ndarray, x: jnp.ndarray, nb_groups: int):
     ----------
     y: jnp.ndarray
         Metric predicted.
-    x: jnp.ndarray
+    grp: jnp.ndarray
         Nominal predictor, integer values show which group does the data belong to.
     nb_groups: int
-        Number of different groups existed in `x`.
+        Number of unique groups in `grp`.
     """
-    assert y.shape[0] == x.shape[0]
-    assert x.ndim == 1
+    assert y.shape[0] == grp.shape[0]
+    assert grp.ndim == 1
 
     nb_obs = y.shape[0]
 
@@ -346,20 +346,20 @@ def one_nominal_predictor(y: jnp.ndarray, x: jnp.ndarray, nb_groups: int):
 
     a_sigma = numpyro.sample(
         'a_sigma', dist_utils.gammaDistFromModeStd(y_std / 2, 2 * y_std))
-    a_ = numpyro.sample('a_', dist.Normal(0, a_sigma).expand((nb_groups, )))
+    a_ = numpyro.sample('a_grp', dist.Normal(0, a_sigma).expand((nb_groups, )))
 
-    ySigma = numpyro.sample('ySigma', dist.Uniform(y_std / 100, y_std * 10))
+    ySigma = numpyro.sample('y_sigma', dist.Uniform(y_std / 100, y_std * 10))
 
     # Observations.
     with numpyro.plate('obs', nb_obs) as idx:
-        mean = a0 + a_[x[idx]]
+        mean = a0 + a_[grp[idx]]
         numpyro.sample('y', dist.Normal(mean, ySigma), obs=y[idx])
 
     # Transform to the actual intercept and coefficients
     # by imposing sum-to-zero constraints on `a_`.
     m = a0 + a_
     b0 = numpyro.deterministic('b0', jnp.mean(m))
-    numpyro.deterministic('b_', m - b0)
+    numpyro.deterministic('b_grp', m - b0)
 
 
 def one_nominal_one_metric(y: jnp.ndarray, grp: jnp.ndarray, cov: jnp.ndarray, nb_groups: int):
@@ -375,7 +375,7 @@ def one_nominal_one_metric(y: jnp.ndarray, grp: jnp.ndarray, cov: jnp.ndarray, n
     cov: jnp.ndarray
         Metric predictor.
     nb_groups: int
-        Number of unique groups exist in `grp`
+        Number of unique groups in `grp`
     """
     assert y.shape[0] == grp.shape[0] == cov.shape[0]
     assert y.ndim == grp.ndim == cov.ndim == 1
@@ -413,3 +413,56 @@ def one_nominal_one_metric(y: jnp.ndarray, grp: jnp.ndarray, cov: jnp.ndarray, n
     numpyro.deterministic('b0', a0 + a_grp_mean - a_cov * cov_mean)
     numpyro.deterministic('b_grp', a_grp - a_grp_mean)
     numpyro.deterministic('b_cov', a_cov)
+
+
+def one_nominal_predictor_het_var_robust(y: jnp.ndarray, grp: jnp.ndarray, nb_groups: int):
+    """
+    Bayesian model described in Section 19.5, figure 19.6
+
+    Parameters
+    ----------
+    y: jnp.ndarray
+        Metric predicted.
+    grp: jnp.ndarray
+        Nominal predictor: the group that the data point belongs to.
+    nb_groups: int
+        Number of unique groups in `grp`.
+    """
+    assert y.shape[0] == grp.shape[0]
+    assert y.ndim == grp.ndim == 1
+
+    nb_obs = y.shape[0]
+
+    # Predicted's statistics.
+    y_mean = jnp.mean(y)
+    y_sd = jnp.std(y)
+
+    # Priors of the linear coefficients.
+    a_grp_sigma = numpyro.sample(
+        'a_grp_sigma', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+
+    a0 = numpyro.sample('a0', dist.Normal(y_mean, y_sd * 5))
+    a_grp = numpyro.sample(
+        'a_grp', dist.Normal(0, a_grp_sigma).expand((nb_groups, )))
+
+    # Normality parameter.
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+
+    # Prior for y_sigma.
+    y_sigma_mode = numpyro.sample(
+        'y_sigma_mode', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+    y_sigma_sd = numpyro.sample(
+        'y_sigma_sd', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+    y_sigma = numpyro.sample(
+        'y_sigma', dist_utils.gammaDistFromModeStd(y_sigma_mode, y_sigma_sd).expand((nb_groups, )))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        mean = a0 + a_grp[grp[idx]]
+        numpyro.sample(
+            'y', dist.StudentT(nu, mean, y_sigma[grp[idx]]), obs=y[idx])
+
+    # Convert back to `b` to impose sum-to-zero constraint.
+    a_grp_mean = jnp.mean(a_grp)
+    numpyro.deterministic('b0', a0 + a_grp_mean)
+    numpyro.deterministic('b_grp', a_grp - a_grp_mean)
