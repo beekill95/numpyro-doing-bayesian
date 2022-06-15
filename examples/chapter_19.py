@@ -58,7 +58,7 @@ mcmc.print_summary()
 idata = az.from_numpyro(
     mcmc,
     coords=dict(CompanionNumber=fruit_df['CompanionNumber'].cat.categories),
-    dims=dict(b_=['CompanionNumber']))
+    dims=dict(b_grp=['CompanionNumber']))
 az.plot_trace(idata)
 plt.tight_layout()
 
@@ -70,9 +70,9 @@ sns.swarmplot(fruit_df['CompanionNumber'], fruit_df['Longevity'], ax=ax)
 ax.set_xlim(xmin=-1)
 
 b0 = idata.posterior['b0'].values.flatten()
-b_ = {name: idata.posterior['b_'].sel(CompanionNumber=name).values.flatten()
-      for name in fruit_df['CompanionNumber'].cat.categories}
-ySigma = idata.posterior['ySigma'].values.flatten()
+b_grp = {name: idata.posterior['b_grp'].sel(CompanionNumber=name).values.flatten()
+         for name in fruit_df['CompanionNumber'].cat.categories}
+ySigma = idata.posterior['y_sigma'].values.flatten()
 
 n_curves = 20
 for i, name in enumerate(fruit_df['CompanionNumber'].cat.categories):
@@ -80,7 +80,7 @@ for i, name in enumerate(fruit_df['CompanionNumber'].cat.categories):
         len(idata.posterior.draw) * len(idata.posterior.chain), n_curves, replace=False)
 
     for idx in indices:
-        rv = norm(b0[idx] + b_[name][idx], ySigma[idx])
+        rv = norm(b0[idx] + b_grp[name][idx], ySigma[idx])
         yrange = np.linspace(rv.ppf(0.01), rv.ppf(0.99), 1000)
         xrange = rv.pdf(yrange)
 
@@ -110,9 +110,9 @@ def plot_contrasts(idata: az.InferenceData, contrasts: 'list[dict]', figsize=(10
 
         # Plot difference.
         ax = axes[0, i]
-        left = mean([posterior['b_'].sel(CompanionNumber=n).values
+        left = mean([posterior['b_grp'].sel(CompanionNumber=n).values
                      for n in contrast['left']])
-        right = mean([posterior['b_'].sel(CompanionNumber=n).values
+        right = mean([posterior['b_grp'].sel(CompanionNumber=n).values
                       for n in contrast['right']])
         diff = left - right
 
@@ -126,7 +126,7 @@ def plot_contrasts(idata: az.InferenceData, contrasts: 'list[dict]', figsize=(10
 
         # Plot effect size.
         ax = axes[1, i]
-        effSize = diff / posterior['ySigma']
+        effSize = diff / posterior['y_sigma']
 
         az.plot_posterior(
             effSize, hdi_prob=0.95,
@@ -171,3 +171,58 @@ mcmc.run(
     nb_groups=len(fruit_df['CompanionNumber'].cat.categories),
 )
 mcmc.print_summary()
+
+idata_met = az.from_numpyro(
+    mcmc,
+    coords=dict(CompanionNumber=fruit_df['CompanionNumber'].cat.categories),
+    dims=dict(b_grp=['CompanionNumber']))
+az.plot_trace(idata_met)
+plt.tight_layout()
+
+# +
+fig, axes = plt.subplots(
+    ncols=fruit_df['CompanionNumber'].cat.categories.size,
+    figsize=(15, 6),
+    sharey=True)
+
+posterior_met = idata_met.posterior
+b0 = posterior_met['b0'].values.flatten()
+b_cov = posterior_met['b_cov'].values.flatten()
+y_sigma = posterior_met['y_sigma'].values.flatten()
+
+n_lines = 20
+for companion_nb, ax in zip(fruit_df['CompanionNumber'].cat.categories, axes.flatten()):
+    data = fruit_df[fruit_df['CompanionNumber'] == companion_nb]
+    sns.scatterplot(x='Thorax', y='Longevity', data=data, ax=ax)
+    ax.set_title(f'{companion_nb} Data\nw. Pred. Post. Dist.')
+
+    xrange = np.linspace(*ax.get_xlim(), 1000)
+
+    line_indices = np.random.choice(
+        posterior_met.draw.size * posterior_met.chain.size,
+        n_lines,
+        replace=False)
+
+    b_grp = posterior_met['b_grp'].sel(
+        CompanionNumber=companion_nb).values.flatten()
+
+    for idx in line_indices:
+        y = b0[idx] + b_grp[idx] + xrange * b_cov[idx]
+        ax.plot(xrange, y, c='b', alpha=.2)
+
+        # Plot predicted posterior distribution of Longevity|Thorax.
+        for xidx in [300, 600, 900]:
+            rv = norm(y[xidx], y_sigma[idx])
+            yrange = np.linspace(rv.ppf(0.01), rv.ppf(0.99), 1000)
+            xpdf = rv.pdf(yrange)
+
+            # Scale the pdf.
+            xpdf = xpdf * 0.05 / np.max(xpdf)
+
+            # Plot the distribution.
+            ax.plot(xrange[xidx] - xpdf, yrange, c='b', alpha=.2)
+
+fig.tight_layout()
+# -
+
+_ = plot_contrasts(idata_met, contrasts, figsize=(15, 6))
