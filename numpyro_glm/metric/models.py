@@ -360,3 +360,56 @@ def one_nominal_predictor(y: jnp.ndarray, x: jnp.ndarray, nb_groups: int):
     m = a0 + a_
     b0 = numpyro.deterministic('b0', jnp.mean(m))
     numpyro.deterministic('b_', m - b0)
+
+
+def one_nominal_one_metric(y: jnp.ndarray, grp: jnp.ndarray, cov: jnp.ndarray, nb_groups: int):
+    """
+    Bayesian model as described in Section 19.4, figure 19.4
+
+    Parameters
+    ----------
+    y: jnp.ndarray
+        Metric Predicted.
+    grp: jnp.ndarray
+        Nominal predictor, indicates which group does the data point belongs to.
+    cov: jnp.ndarray
+        Metric predictor.
+    nb_groups: int
+        Number of unique groups exist in `grp`
+    """
+    assert y.shape[0] == grp.shape[0] == cov.shape[0]
+    assert y.ndim == grp.ndim == cov.ndim == 1
+
+    nb_obs = y.shape[0]
+
+    # Statistics of predicted.
+    y_mean = jnp.mean(y)
+    y_sd = jnp.std(y)
+
+    # Statistics of metric predictor.
+    cov_mean = jnp.mean(cov)
+    cov_sd = jnp.std(cov)
+
+    # Specify priors of `a` intercept and coefficients
+    # (no imposing sum-to-zero constraint).
+    a0 = numpyro.sample('a0', dist.Normal(y_mean, y_sd * 5))
+
+    a_grp_sigma = numpyro.sample(
+        'a_grp_sigma', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+    a_grp = numpyro.sample(
+        'a_grp', dist.Normal(0, a_grp_sigma).expand((nb_groups, )))
+
+    a_cov = numpyro.sample('a_cov', dist.Normal(0, 2 * y_sd / cov_sd))
+
+    y_sigma = numpyro.sample('y_sigma', dist.Uniform(y_sd / 100, y_sd * 100))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        mean = a0 + a_grp[grp[idx]] + a_cov * (cov[idx] - cov_mean)
+        numpyro.sample('y', dist.Normal(mean, y_sigma), obs=y[idx])
+
+    # Convert from `a` to `b` to impose sum-to-zero constraint.
+    a_grp_mean = jnp.mean(a_grp)
+    numpyro.deterministic('b0', a0 + a_grp_mean - a_cov * cov_mean)
+    numpyro.deterministic('b_grp', a_grp - a_grp_mean)
+    numpyro.deterministic('b_cov', a_cov)

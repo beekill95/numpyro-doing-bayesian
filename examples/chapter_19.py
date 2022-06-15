@@ -17,17 +17,22 @@
 # %load_ext autoreload
 # %autoreload 2
 
+# +
 import arviz as az
 from functools import reduce
 import jax.numpy as jnp
 import jax.random as random
 import matplotlib.pyplot as plt
 import numpy as np
+import numpyro
 from numpyro.infer import MCMC, NUTS
 import numpyro_glm.metric.models as glm_metric
 import pandas as pd
 import seaborn as sns
 from scipy.stats import norm
+
+numpyro.set_host_device_count(4)
+# -
 
 # # Chapter 19: Metric Predicted Variable with One Nominal Predictor
 # ## Hierarchical Bayesian Approach
@@ -42,7 +47,7 @@ fruit_df.describe()
 
 key = random.PRNGKey(0)
 kernel = NUTS(glm_metric.one_nominal_predictor)
-mcmc = MCMC(kernel, num_warmup=1000, num_samples=10000)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(
     key,
     jnp.array(fruit_df['Longevity'].values),
@@ -152,3 +157,17 @@ contrasts = [
 ]
 
 _ = plot_contrasts(idata, contrasts, figsize=(15, 6))
+# -
+
+# ## Including a Metric Predictor
+
+kernel = NUTS(glm_metric.one_nominal_one_metric)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(fruit_df['Longevity'].values),
+    grp=jnp.array(fruit_df['CompanionNumber'].cat.codes.values),
+    cov=jnp.array(fruit_df['Thorax'].values),
+    nb_groups=len(fruit_df['CompanionNumber'].cat.categories),
+)
+mcmc.print_summary()
