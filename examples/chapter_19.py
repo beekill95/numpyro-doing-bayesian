@@ -98,7 +98,7 @@ fig.tight_layout()
 # Plot contrasts to compare between groups.
 
 # +
-def plot_contrasts(idata: az.InferenceData, contrasts: 'list[dict]', figsize=(10, 6)):
+def plot_contrasts(idata: az.InferenceData, contrasts: 'list[dict]', b_grp_dim: str, figsize=(10, 6)):
     fig, axes = plt.subplots(nrows=2, ncols=len(contrasts), figsize=figsize)
     posterior = idata.posterior
 
@@ -110,9 +110,9 @@ def plot_contrasts(idata: az.InferenceData, contrasts: 'list[dict]', figsize=(10
 
         # Plot difference.
         ax = axes[0, i]
-        left = mean([posterior['b_grp'].sel(CompanionNumber=n).values
+        left = mean([posterior['b_grp'].sel({b_grp_dim: n}).values
                      for n in contrast['left']])
-        right = mean([posterior['b_grp'].sel(CompanionNumber=n).values
+        right = mean([posterior['b_grp'].sel({b_grp_dim: n}).values
                       for n in contrast['right']])
         diff = left - right
 
@@ -156,7 +156,8 @@ contrasts = [
          effSizeRefVal=0.0, effSizeRope=(-0.1, 0.1)),
 ]
 
-_ = plot_contrasts(idata, contrasts, figsize=(15, 6))
+_ = plot_contrasts(
+    idata, contrasts, b_grp_dim='CompanionNumber', figsize=(15, 6))
 # -
 
 # ## Including a Metric Predictor
@@ -225,7 +226,8 @@ for companion_nb, ax in zip(fruit_df['CompanionNumber'].cat.categories, axes.fla
 fig.tight_layout()
 # -
 
-_ = plot_contrasts(idata_met, contrasts, figsize=(15, 6))
+_ = plot_contrasts(idata_met, contrasts,
+                   b_grp_dim='CompanionNumber', figsize=(15, 6))
 
 # ## Heterogeneous Variances and Robustness against Outliers
 
@@ -285,6 +287,16 @@ for gid, group in enumerate(nonhomo_df['Group'].cat.categories):
 fig.tight_layout()
 # -
 
+contrasts = [
+    dict(left=['D'], right=['A'],
+         refVal=0, rope=(-1, 1),
+         effSizeRefVal=0, effSizeRope=(-0.1, 0.1)),
+    dict(left=['C'], right=['B'],
+         refVal=0, rope=(-1, 1),
+         effSizeRefVal=0, effSizeRope=(-0.1, 0.1)),
+]
+_ = plot_contrasts(idata_hom, contrasts, b_grp_dim='Group')
+
 # ### Heterogeneous Model
 
 kernel = NUTS(glm_metric.one_nominal_predictor_het_var_robust)
@@ -334,3 +346,51 @@ for gid, group in enumerate(nonhomo_df['Group'].cat.categories):
         ax.plot(gid - xpdf, yrange, c='b', alpha=0.1)
 
 fig.tight_layout()
+
+
+# +
+def plot_contrasts_het(idata: az.InferenceData, contrasts: 'list[dict]', figsize=(10, 6)):
+    fig, axes = plt.subplots(nrows=2, ncols=len(contrasts), figsize=figsize)
+    posterior = idata.posterior
+
+    def mean(values: list):
+        return sum(values) / len(values)
+
+    for i, contrast in enumerate(contrasts):
+        plot_title = f'{".".join(contrast["left"])}\nvs\n{".".join(contrast["right"])}'
+
+        # Plot difference.
+        ax = axes[0, i]
+        left = mean([posterior['b_grp'].sel(Group=n).values
+                     for n in contrast['left']])
+        right = mean([posterior['b_grp'].sel(Group=n).values
+                      for n in contrast['right']])
+        diff = left - right
+
+        az.plot_posterior(
+            diff, hdi_prob=0.95,
+            point_estimate='mode',
+            ref_val=contrast['refVal'], rope=contrast['rope'],
+            ax=ax)
+        ax.set_title(plot_title)
+        ax.set_xlabel('Difference')
+
+        # Plot effect size.
+        ax = axes[1, i]
+        y_sigma_sq = mean([posterior['y_sigma'].sel(Group=n).values**2
+                          for n in (contrast['left'] + contrast['right'])])
+        effSize = diff / np.sqrt(y_sigma_sq)
+
+        az.plot_posterior(
+            effSize, hdi_prob=0.95,
+            point_estimate='mode',
+            ref_val=contrast['effSizeRefVal'], rope=contrast['effSizeRope'],
+            ax=ax)
+        ax.set_title(plot_title)
+        ax.set_xlabel('Effect Size')
+
+    fig.tight_layout()
+    return fig
+
+
+_ = plot_contrasts_het(idata_het, contrasts)
