@@ -533,3 +533,105 @@ def multi_nominal_predictors(y: jnp.ndarray, grp: jnp.ndarray, nb_groups: 'list[
     b1 = numpyro.deterministic('b1', jnp.mean(m, axis=1) - b0)
     b2 = numpyro.deterministic('b2', jnp.mean(m, axis=0) - b0)
     numpyro.deterministic('b1b2', m - (b0 + b1[..., None] + b2[None, ...]))
+
+
+def multi_nominal_predictors_het_var_robust(y: jnp.ndarray, grp: jnp.ndarray, y_sds: jnp.ndarray, nb_groups: 'list[int]'):
+    """
+    Bayesian model as described in Chapter 20, Section 20.2, Figure 20.2
+
+    Parameters
+    ----------
+    y: jnp.ndarray
+        Metric predicted variable.
+    grp: jnp.ndarray
+        Nominal predictors.
+    y_sds: jnp.ndarray
+        Standard deviation of metric predicted variable `y` grouped by `grp` nominal variables.
+    nb_groups: list[int]
+        List of the number of unique groups in each column of `grp`.
+    """
+    assert y.shape[0] == grp.shape[0]
+    assert y.ndim == 1 and grp.ndim == 2
+    assert grp.shape[1] == len(nb_groups) == 2
+
+    nb_obs = y.shape[0]
+
+    # Predicted statistics.
+    y_mean = jnp.mean(y)
+    y_sd = jnp.std(y)
+
+    y_sds_median = jnp.median(y_sds)
+    y_sds_sd = jnp.std(y_sds)
+
+    # Priors for the intercept.
+    a0_ = numpyro.sample('a0_', dist.Normal(0, 1))
+    a0 = numpyro.deterministic('a0', a0_ * y_sd * 5 + y_mean)
+
+    # Priors for coefficients associated with the first factor.
+    a1_sigma = numpyro.sample(
+        'a1_sigma', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+    a1_ = numpyro.sample(
+        'a1_', dist.Normal(0, 1).expand((nb_groups[0], )))
+    a1 = numpyro.deterministic('a1', a1_ * a1_sigma)
+
+    # Priors for coefficients associated with the second factor.
+    a2_sigma = numpyro.sample(
+        'a2_sigma', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+    a2_ = numpyro.sample(
+        'a2_', dist.Normal(0, 1).expand((nb_groups[1], )))
+    a2 = numpyro.deterministic('a2', a2_ * a2_sigma)
+
+    # Priors for coefficients associated with the interaction
+    # between the first and the second factor.
+    a1a2_sigma = numpyro.sample(
+        'a1a2_sigma', dist_utils.gammaDistFromModeStd(y_sd / 2, y_sd * 2))
+    a1a2_ = numpyro.sample(
+        'a1a2_', dist.Normal(0, 1).expand(tuple(nb_groups)))
+    a1a2 = numpyro.deterministic('a1a2', a1a2_ * a1a2_sigma)
+
+    # Priors for y_sigma.
+    # y_sigma_mode = numpyro.sample(
+    #     'y_sigma_mode', dist_utils.gammaDistFromModeStd(y_sds_median, y_sds_sd * 2))
+    # y_sigma_sd = numpyro.sample(
+    #     'y_sigma_sd', dist_utils.gammaDistFromModeStd(y_sds_median, y_sds_sd * 2))
+    # y_sigma = numpyro.sample(
+    #     'y_sigma',
+    #     dist_utils.gammaDistFromModeStd(y_sigma_mode, y_sigma_sd).expand((nb_groups[1], )))
+    # y_sigma_ = numpyro.sample(
+    #     'y_sigma_',
+    #     dist_utils.gammaDistFromModeStd(y_sds_median, y_sds_sd * 2).expand(tuple(nb_groups)))
+    y_sigma_ = numpyro.sample(
+        'y_sigma_',
+        dist.Exponential(1. / y_sds_median).expand(tuple(nb_groups))
+    )
+    y_sigma = numpyro.deterministic(
+        'y_sigma', jnp.maximum(y_sigma_, y_sds_median / 1000))
+    # y_sigma = numpyro.sample('y_sigma', dist.Uniform(y_sd / 100, y_sd * 10))
+
+    # y_sigma_mode = numpyro.sample(
+    #     'y_sigma_mode', dist.LeftTruncatedDistribution(dist.Normal(y_sds_median, y_sds_sd * 2), low=0))
+    # y_sigma_sd = numpyro.sample(
+    #     'y_sigma_sd', dist.LeftTruncatedDistribution(dist.Normal(y_sds_median, y_sds_sd * 2), low=0))
+    # y_sigma = numpyro.sample(
+    #     'y_sigma',
+    #     dist.LeftTruncatedDistribution(
+    #         dist.Normal(y_sigma_mode, y_sigma_sd), low=0).expand(tuple(nb_groups))
+    # )
+
+    # Normality parameter.
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        g1 = grp[idx, 0]
+        g2 = grp[idx, 1]
+        mean = a0 + a1[g1] + a2[g2] + a1a2[g1, g2]
+        numpyro.sample(
+            'y', dist.StudentT(nu, mean, y_sigma[g1, g2]), obs=y[idx])
+
+    # Convert back to b to impose sum-to-zero constraint.
+    m = a0 + a1[..., None] + a2[None, ...] + a1a2
+    b0 = numpyro.deterministic('b0', jnp.mean(m))
+    b1 = numpyro.deterministic('b1', jnp.mean(m, axis=1) - b0)
+    b2 = numpyro.deterministic('b2', jnp.mean(m, axis=0) - b0)
+    numpyro.deterministic('b1b2', m - (b0 + b1[..., None] + b2[None, ...]))
