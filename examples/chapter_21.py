@@ -128,3 +128,44 @@ for idx in curve_indices:
     ax.contour(wt, ht, prob, alpha=0.6, levels=[0.5])
 
 fig.tight_layout()
+# -
+
+# ## Robust Logistic Regression
+
+kernel = NUTS(glm_logistic.dich_multi_metric_predictors_robust)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(htwt_df['male'].values),
+    x=jnp.array(htwt_df[['weight']].values),
+)
+mcmc.print_summary()
+
+idata_wt_robust = az.from_numpyro(
+    mcmc,
+    dims=dict(preds=['weight']),
+    coords=dict(b=['preds']))
+az.plot_trace(idata_wt_robust, ['b0', 'b'])
+plt.tight_layout()
+
+# +
+n_curves = 20
+posterior = idata_wt_robust.posterior
+curve_indices = np.random.choice(
+    posterior.draw.size * posterior.chain.size,
+    n_curves,
+    replace=False
+)
+b0 = posterior['b0'].values.flatten()
+b1 = posterior['b'].values.flatten()
+
+fig, ax = plt.subplots()
+ax.plot(htwt_df['weight'], htwt_df['male'], 'o')
+wt_range = np.linspace(*ax.get_xlim(), 1000)
+
+for idx in curve_indices:
+    y = b0[idx] + b1[idx] * wt_range
+    y = 1. / (1 + np.exp(-y))
+    ax.plot(wt_range, y)
+
+fig.tight_layout()
