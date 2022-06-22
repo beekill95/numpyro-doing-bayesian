@@ -298,3 +298,26 @@ fig.tight_layout()
 
 az.plot_posterior(idata_het, ['nu', 'y_sigma'])
 plt.tight_layout()
+
+# ## Split-plot Design
+
+agri_df = pd.read_csv('datasets/SplitPlotAgriData.csv')
+agri_df['Field'] = agri_df['Field'].astype('category')
+agri_df['Till'] = agri_df['Till'].astype('category')
+agri_df['Fert'] = agri_df['Fert'].astype('category')
+agri_df.info()
+
+# +
+fig, axes = plt.subplots(ncols=3, sharey=True)
+
+for till, ax in zip(agri_df['Till'].cat.categories, axes):
+    df = agri_df[agri_df['Till'] == till]
+
+    for field in df['Field'].cat.categories:
+        df_ = df[df['Field'] == field]
+        sns.lineplot(x='Fert', y='Yield', data=df_, ax=ax)
+
+    ax.set_title(f'{till} Tilling')
+    ax.set_xlim(-0.5, 2.5)
+
+fig.tight_layout()
