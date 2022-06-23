@@ -310,3 +310,24 @@ for i, pri_pos in enumerate(batting_df['PriPos'].cat.categories):
         ax.plot(i - xpdf, yrange, c='b', alpha=.1)
 
 fig.tight_layout()
+
+# +
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
+
+differences = [
+    ('b', 'Pitcher', 'Catcher'),
+    ('b', 'Catcher', '1st Base'),
+    ('omega', 'Pitcher', 'Catcher'),
+    ('omega', 'Catcher', '1st Base'),
+]
+for ax, (var, left_pos, right_pos) in zip(axes.flatten(), differences):
+    left_val = posterior[var].sel(pos=left_pos).values
+    right_val = posterior[var].sel(pos=right_pos).values
+    diff = left_val - right_val
+
+    az.plot_posterior(diff, point_estimate='mode',
+                      hdi_prob=0.95, ref_val=0, ax=ax)
+    ax.set_title(f'{var}: {left_pos} vs {right_pos}')
+    ax.set_xlabel(f'Difference (in {var})')
+
+fig.tight_layout()
