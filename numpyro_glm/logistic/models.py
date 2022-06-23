@@ -125,3 +125,39 @@ def binom_one_nominal_predictor(y: jnp.ndarray, grp: jnp.ndarray, N: jnp.ndarray
     m = a0 + a
     b0 = numpyro.deterministic('b0', jnp.mean(m))
     numpyro.deterministic('b', m - b0)
+
+
+def binom_one_nominal_predictor_het(y: jnp.ndarray, grp: jnp.ndarray, N: jnp.ndarray, nb_groups: int):
+    """
+    Binomial predicted variable with one nominal predictor model
+    as described in chapter 21, section 21.4.2, figure 21.12.
+    """
+    assert y.shape[0] == grp.shape[0] == N.shape[0]
+
+    nb_obs = y.shape[0]
+
+    # Prior for intercept.
+    a0 = numpyro.sample('_a0', dist.Normal(0, 2))
+
+    # Prior for coefficients.
+    a_sigma = numpyro.sample('a_sigma', dist_utils.gammaDistFromModeStd(2, 4))
+    a = numpyro.sample('_a', dist.Normal(0, a_sigma).expand((nb_groups, )))
+
+    # Prior for kappa of Beta distribution.
+    kappa_minus_2 = numpyro.sample(
+        '_kappa_minus_2', dist_utils.gammaDistFromModeStd(1, 10).expand((nb_groups, )))
+    kappa = numpyro.deterministic('kappa', kappa_minus_2 + 2)
+
+    # Specify mu distribution.
+    omega = numpyro.deterministic('omega', expit(a0 + a))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        mu = numpyro.sample(
+            'mu', dist_utils.beta_dist_from_omega_kappa(omega[grp[idx]], kappa[grp[idx]]))
+        numpyro.sample('y', dist.Binomial(N[idx], mu), obs=y[idx])
+
+    # Convert from a to b to impose sum-to-zero constraint.
+    m = a0 + a
+    b0 = numpyro.deterministic('b0', jnp.mean(m))
+    numpyro.deterministic('b', m - b0)
