@@ -8,9 +8,9 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.13.8
 #   kernelspec:
-#     display_name: doing_bayes
+#     display_name: doing-bayes
 #     language: python
-#     name: doing_bayes
+#     name: doing-bayes
 # ---
 
 # %cd ../..
@@ -23,7 +23,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
-from numpyro.infer import MCMC, NUTS
+from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import numpyro_glm.ordinal as glm_ordinal
 
 
