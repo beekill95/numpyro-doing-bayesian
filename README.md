@@ -1,5 +1,8 @@
 # numpyro-doing-bayesian
-My implementation of John K. Kruschke's Doing Bayesian Data Analysis 2nd edition using Python and Numpyro.
+
+My implementation of John K. Kruschke's
+[Doing Bayesian Data Analysis 2nd edition](https://sites.google.com/site/doingbayesiandataanalysis/what-s-new-in-2nd-ed)
+using Python and Numpyro.
 This implementation is not comprehensive,
 I'll just focus on the generalized linear model only,
 which is from chapter 16 onward.
@@ -39,3 +42,8 @@ Then, you can click on the link to open notebooks on your browsers.
 
 Each chapter's notebook are a normal python script thanks to [Jupytext](https://jupytext.readthedocs.io/en/latest/).
 To generate a notebook for a chapter from the python script, you can follow this [instruction](https://jupytext.readthedocs.io/en/latest/paired-notebooks.html#how-to-open-scripts-with-either-the-text-or-notebook-view-in-jupyter).
+
+## Credits
+
+My implementation refers to [JWarmenhoven's implementation](https://github.com/JWarmenhoven/DBDA-python) a lot,
+especially those figures with data and posterior predictive distributions.
