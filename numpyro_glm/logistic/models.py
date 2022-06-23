@@ -2,6 +2,7 @@ import jax.numpy as jnp
 from jax.scipy.special import expit
 import numpyro
 import numpyro.distributions as dist
+import numpyro_glm.utils.dist as dist_utils
 
 
 def dich_multi_metric_predictors(y: jnp.ndarray, x: jnp.ndarray):
@@ -88,3 +89,39 @@ def dich_multi_metric_predictors_robust(y: jnp.ndarray, x: jnp.ndarray):
     # Transform back to beta.
     numpyro.deterministic('b0', _a0 - jnp.dot(_a, x_mean / x_sd))
     numpyro.deterministic('b', _a / x_sd)
+
+
+def binom_one_nominal_predictor(y: jnp.ndarray, grp: jnp.ndarray, N: jnp.ndarray, nb_groups: int):
+    """
+    Binomial predicted variable with one nominal predictor model
+    as described in chapter 21, section 21.4.2, figure 21.12.
+    """
+    assert y.shape[0] == grp.shape[0] == N.shape[0]
+
+    nb_obs = y.shape[0]
+
+    # Prior for intercept.
+    a0 = numpyro.sample('_a0', dist.Normal(0, 2))
+
+    # Prior for coefficients.
+    a_sigma = numpyro.sample('a_sigma', dist_utils.gammaDistFromModeStd(2, 4))
+    a = numpyro.sample('_a', dist.Normal(0, a_sigma).expand((nb_groups, )))
+
+    # Prior for kappa of Beta distribution.
+    kappa_minus_2 = numpyro.sample(
+        '_kappa_minus_2', dist_utils.gammaDistFromModeStd(1, 10))
+    kappa = numpyro.deterministic('kappa', kappa_minus_2 + 2)
+
+    # Specify mu distribution.
+    omega = numpyro.deterministic('omega', expit(a0 + a))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        mu = numpyro.sample(
+            'mu', dist_utils.beta_dist_from_omega_kappa(omega[grp[idx]], kappa))
+        numpyro.sample('y', dist.Binomial(N[idx], mu), obs=y[idx])
+
+    # Convert from a to b to impose sum-to-zero constraint.
+    m = a0 + a
+    b0 = numpyro.deterministic('b0', jnp.mean(m))
+    numpyro.deterministic('b', m - b0)
