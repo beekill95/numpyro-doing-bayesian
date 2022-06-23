@@ -258,7 +258,7 @@ for ax, (var, left_pos, right_pos) in zip(axes.flatten(), differences):
 fig.tight_layout()
 # -
 
-# #### Heterogeneous Concentration Model
+# #### Heterogeneous Concentration (Exercise 21.3)
 
 kernel = NUTS(glm_logistic.binom_one_nominal_predictor_het,
               init_strategy=init_to_median)
