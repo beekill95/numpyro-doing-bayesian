@@ -17,8 +17,12 @@
 # %load_ext autoreload
 # %autoreload 2
 
+# +
+import arviz as az
+import numpyro.distributions as dist
 import jax.numpy as jnp
 import jax.random as random
+from numpyro.infer.initialization import init_to_median
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,6 +30,10 @@ import numpyro
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import numpyro_glm.ordinal as glm_ordinal
 
+numpyro.set_host_device_count(4)
+
+
+# -
 
 # # Ordinal Model with Synthesis Data
 # ## Synthesis Data
@@ -69,20 +77,17 @@ votes
 
 data = votes.iloc[:, 1:].values
 numpyro.render_model(
-    glm_ordinal.one_group,
+    glm_ordinal.one_group_1,
     model_args=(jnp.array(data), ORDINAL_VALUES),
     render_params=True,
 )
 
 mcmc_key = random.PRNGKey(1234)
-kernel = NUTS(glm_ordinal.one_group)
-mcmc = MCMC(kernel, num_warmup=250, num_samples=750)
+kernel = NUTS(glm_ordinal.one_group_1, init_strategy=init_to_median)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(mcmc_key, jnp.array(data), ORDINAL_VALUES)
 mcmc.print_summary()
 
-# +
-import numpyro.distributions as dist
-
-d = dist.MultinomialProbs(total_count=32, probs=jnp.array([[0.5, 0.2, 0.29, 0.1, 0.]]))
-d.sample(mcmc_key)
-print(jnp.array([[0.5, 0.2, 0.29, 0.1, 0.]]).T.shape)
+idata = az.from_numpyro(mcmc)
+az.plot_trace(idata)
+plt.tight_layout()

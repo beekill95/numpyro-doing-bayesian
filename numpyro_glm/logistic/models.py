@@ -161,3 +161,37 @@ def binom_one_nominal_predictor_het(y: jnp.ndarray, grp: jnp.ndarray, N: jnp.nda
     m = a0 + a
     b0 = numpyro.deterministic('b0', jnp.mean(m))
     numpyro.deterministic('b', m - b0)
+
+
+def softmax_multi_metric_predictors(y: jnp.ndarray, x: jnp.ndarray):
+    """
+    Parameters
+    ----------
+    """
+    assert y.shape[0] == x.shape[0]
+    assert x.ndim == 2
+
+    nb_obs = y.shape[0]
+    nb_preds = x.shape[1]
+
+    # Metric predictors statistics.
+    x_mean = jnp.mean(x, axis=0)
+    x_sd = jnp.std(x, axis=0)
+
+    # Normalize x.
+    x_z = (x - x_mean) / x_sd
+
+    # Specify priors for intercept term.
+    _a0 = numpyro.sample('_a0', dist.Normal(0, 2))
+
+    # Specify priors for coefficient terms.
+    _a = numpyro.sample('_a', dist.Normal(0, 2).expand((nb_pred, )))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        logit = _a0 + jnp.dot(x_z[idx], _a)
+        numpyro.sample('y', dist.BernoulliLogits(logit), obs=y[idx])
+
+    # Transform back to beta.
+    numpyro.deterministic('b0', _a0 - jnp.dot(_a, x_mean / x_sd))
+    numpyro.deterministic('b', _a / x_sd)
