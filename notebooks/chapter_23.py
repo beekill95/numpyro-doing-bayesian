@@ -27,6 +27,7 @@ import numpyro
 from numpyro.infer import MCMC, NUTS
 from numpyro.infer.initialization import init_to_median
 import numpyro_glm.ordinal.models as glm_ordinal
+import numpyro_glm.ordinal.plots as ordinal_plots
 import pandas as pd
 import seaborn as sns
 
@@ -101,6 +102,10 @@ ax.set_xlabel('$(\mu - 2) / \sigma$')
 
 # Plot thresholds.
 ax = axes[2, 0]
+ordinal_plots.plot_threshold_scatter(
+    idata_yord_1,
+    ['thres_1', 'thres_2', 'thres_3', 'thres_4', 'thres_5', 'thres_6'],
+    ax=ax)
 
 axes[2, 1].remove()
 fig.tight_layout()
