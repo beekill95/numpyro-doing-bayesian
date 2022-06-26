@@ -142,3 +142,160 @@ az.plot_trace(idata_yord_2)
 plt.tight_layout()
 
 plot_ordinal_one_group_results(idata_yord_2, ord_2_df, thresholds)
+
+# ## The Case of Two Groups
+
+two_groups_df = pd.read_csv('datasets/OrdinalProbitData1.csv')
+two_groups_ordinal_cat = pd.CategoricalDtype([1, 2, 3, 4, 5], ordered=True)
+two_groups_df['Y'] = two_groups_df['Y'].astype(two_groups_ordinal_cat)
+two_groups_df['X'] = two_groups_df['X'].astype('category')
+two_groups_df.info()
+
+kernel = NUTS(glm_ordinal.yord_two_groups,
+              init_strategy=init_to_median,
+              target_accept_prob=0.99)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(two_groups_df['Y'].cat.codes.values),
+    grp=jnp.array(two_groups_df['X'].cat.codes.values),
+    K=two_groups_ordinal_cat.categories.size,
+    nb_groups=two_groups_df['X'].cat.categories.size,
+)
+mcmc.print_summary()
+
+idata_two_groups = az.from_numpyro(
+    mcmc,
+    coords=dict(group=two_groups_df['X'].cat.categories),
+    dims=dict(sigma=['group'], mu=['group'])
+)
+az.plot_trace(idata_two_groups)
+plt.tight_layout()
+
+# +
+fig, axes = plt.subplots(nrows=5, ncols=2, figsize=(12, 16))
+
+# Plot group A's latent mean.
+ax = axes[0, 0]
+az.plot_posterior(
+    idata_two_groups,
+    var_names='mu',
+    coords=dict(group='A'),
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('A Mean')
+ax.set_xlabel('$\mu_A$')
+
+# Plot group A's data with posterior distrib.
+ax = axes[0, 1]
+ordinal_plots.plot_ordinal_data_with_posterior(
+    idata_two_groups,
+    'mu', 'sigma',
+    ['thres_1', 'thres_2', 'thres_3', 'thres_4'],
+    latent_coords=dict(group='A'),
+    data=two_groups_df[two_groups_df['X'] == 'A'],
+    ordinal_predicted='Y',
+    ax=ax,
+)
+ax.set_title('Data for A with Post. Pred.')
+
+# Plot group B's latent mean.
+ax = axes[1, 0]
+az.plot_posterior(
+    idata_two_groups,
+    var_names='mu',
+    coords=dict(group='B'),
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('B Mean')
+ax.set_xlabel('$\mu_B$')
+
+# Plot group B's data with posterior distrib.
+ax = axes[1, 1]
+thresholds = ['thres_1', 'thres_2', 'thres_3', 'thres_4']
+ordinal_plots.plot_ordinal_data_with_posterior(
+    idata_two_groups,
+    'mu', 'sigma',
+    thresholds,
+    latent_coords=dict(group='B'),
+    data=two_groups_df[two_groups_df['X'] == 'B'],
+    ordinal_predicted='Y',
+    ax=ax,
+)
+ax.set_title('Data for B with Post. Pred.')
+
+# Plot A's standard deviation.
+ax = axes[2, 0]
+az.plot_posterior(
+    idata_two_groups,
+    var_names='sigma',
+    coords=dict(group='A'),
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('A Std.')
+ax.set_xlabel('$\sigma_A$')
+
+# Plot difference of means.
+posterior = idata_two_groups['posterior']
+ax = axes[2, 1]
+mean_diff = (posterior['mu'].sel(group='B')
+             - posterior['mu'].sel(group='A'))
+az.plot_posterior(
+    mean_diff,
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('Difference of Means')
+ax.set_xlabel('$\mu_B - \mu_A$')
+
+# Plot B's standard deviation.
+ax = axes[3, 0]
+az.plot_posterior(
+    idata_two_groups,
+    var_names='sigma',
+    coords=dict(group='B'),
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('B Std.')
+ax.set_xlabel('$\sigma_B$')
+
+# Plot difference of sigmas.
+ax = axes[3, 1]
+sigma_diff = (posterior['sigma'].sel(group='B')
+              - posterior['sigma'].sel(group='A'))
+az.plot_posterior(
+    sigma_diff,
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('Difference of Sigmas')
+ax.set_xlabel('$\sigma_B - \sigma_A$')
+
+# Plot threshold scatter.
+ax = axes[4, 0]
+ordinal_plots.plot_threshold_scatter(
+    idata_two_groups,
+    thresholds,
+    ax=ax
+)
+ax.set_xlabel('Threshold')
+ax.set_ylabel('Mean Threshold')
+
+# Plot effect size.
+ax = axes[4, 1]
+sigma_squared = (posterior['sigma'].sel(group='A')**2
+                 + posterior['sigma'].sel(group='B')**2)
+eff_size = mean_diff / np.sqrt(sigma_squared / 2)
+az.plot_posterior(
+    eff_size,
+    point_estimate='mode',
+    hdi_prob=0.95,
+    ax=ax)
+ax.set_title('Effect Size')
+ax.set_xlabel('$(\mu_B - \mu_A) / \sqrt{\sigma_A^2 + \sigma_B^2}$')
+
+fig.tight_layout()

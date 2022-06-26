@@ -36,8 +36,11 @@ def plot_threshold_scatter(idata: az.InferenceData, thresholds: 'list[str]', ax:
 
 
 def plot_ordinal_data_with_posterior(
-        idata: az.InferenceData, latent_mean: str, latent_sd: str, thresholds: 'list[str]',
+        idata: az.InferenceData,
+        latent_mean: str, latent_sd: str,
+        thresholds: 'list[str]',
         data: pd.DataFrame, ordinal_predicted='Y',
+        latent_coords: dict = None,
         ax: plt.Axes = None):
     if ax is None:
         _, ax = plt.subplots()
@@ -51,8 +54,8 @@ def plot_ordinal_data_with_posterior(
 
     # Plot posterior distribution.
     posterior = idata['posterior']
-    mean = posterior[latent_mean].values.flatten()
-    sd = posterior[latent_sd].values.flatten()
+    mean = posterior[latent_mean].sel(latent_coords).values.flatten()
+    sd = posterior[latent_sd].sel(latent_coords).values.flatten()
     thres = np.asarray([posterior[f'{t}'].values.flatten()
                         for t in thresholds])
     cdf = norm.cdf((thres - mean[None, :]) / sd[None, :])

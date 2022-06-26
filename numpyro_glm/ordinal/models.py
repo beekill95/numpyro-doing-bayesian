@@ -43,3 +43,52 @@ def yord_single_group(y: jnp.ndarray, K: int):
     # Observations.
     with numpyro.plate('obs', nb_obs) as idx:
         numpyro.sample('y', dist.Categorical(probs), obs=y[idx])
+
+
+def yord_two_groups(y: jnp.ndarray, grp: jnp.ndarray, K: int, nb_groups: int):
+    """
+    Two group ordinal model as described in Chapter 23, section 23.3.
+
+    Parameters
+    ----------
+    y: jnp.ndarray
+        Ordinal predicted variable.
+    grp: jnp.ndarray
+        Tell which group a data point belongs to.
+    K: int
+        Number of different ordinal outcomes.
+    nb_groups: int
+        Number of different groups in `grp`.
+    """
+    assert y.shape[0] == grp.shape[0]
+    assert nb_groups == 2  # although, this could be removed!
+
+    nb_obs = y.shape[0]
+
+    # Specify mean and scale of latent score.
+    mu = numpyro.sample(
+        'mu', dist.Normal((K + 1.) / 2, K).expand([nb_groups]))
+    sigma = numpyro.sample(
+        'sigma', dist.Uniform(K / 1000., K * 10.).expand([nb_groups]))
+    score = dist.Normal(mu[:, None], sigma[:, None])
+
+    # Specify the thresholds.
+    thres = jnp.array([
+        numpyro.deterministic('thres_1', jnp.array(1.5)),
+        *[numpyro.sample(f'thres_{i + 1}', dist.Normal(i + 1.5, 2))
+          for i in range(1, K - 2)],
+        numpyro.deterministic(f'thres_{K - 1}', jnp.array(K - 0.5)),
+    ])
+    cdf = score.cdf(thres[None, :])
+
+    # Calculate probability for each group and each outcome.
+    probs = jnp.zeros((nb_groups, K), dtype=jnp.float32)
+    probs = probs.at[:, 0].set(cdf[:, 0])
+    probs = probs.at[:, jnp.arange(1, K - 1)].set(cdf[:, 1:] - cdf[:, :-1])
+    probs = probs.at[:, -1].set(1. - cdf[:, -1])
+    probs = jnp.maximum(probs, 0.)
+    probs = probs / jnp.sum(probs, axis=1, keepdims=True)
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        numpyro.sample('y', dist.Categorical(probs[grp[idx]]), obs=y[idx])
