@@ -92,3 +92,53 @@ def yord_two_groups(y: jnp.ndarray, grp: jnp.ndarray, K: int, nb_groups: int):
     # Observations.
     with numpyro.plate('obs', nb_obs) as idx:
         numpyro.sample('y', dist.Categorical(probs[grp[idx]]), obs=y[idx])
+
+
+def yord_metric_predictors(y: jnp.ndarray, x: jnp.ndarray, K: int):
+    """
+    Probit regression model as described in chapter 23, section 23.4.
+    """
+    assert y.shape[0] == x.shape[0]
+    assert x.ndim == 2
+
+    nb_obs = y.shape[0]
+    nb_preds = x.shape[1]
+
+    # Data statistics.
+    x_means = jnp.mean(x, axis=0)
+    x_sds = jnp.std(x, axis=0)
+    xz = (x - x_means) / x_sds
+
+    # Prior for intercept and coefficients.
+    a0 = numpyro.sample('_a0', dist.Normal((K + 1.) / 2, K))
+    a = numpyro.sample('_a', dist.Normal(0, K).expand([nb_preds]))
+
+    # Latent mean and sigma.
+    mu = numpyro.deterministic('mu', a0 + jnp.dot(xz, a))
+    sigma = numpyro.sample('sigma', dist.Uniform(K / 1000, K * 10))
+    score = dist.Normal(mu[:, None], sigma)
+
+    # Specify the thresholds.
+    thres = jnp.array([
+        numpyro.deterministic('thres_1', jnp.array(1.5)),
+        *[numpyro.sample(f'thres_{i + 1}', dist.Normal(i + 1.5, 2))
+          for i in range(1, K - 2)],
+        numpyro.deterministic(f'thres_{K - 1}', jnp.array(K - 0.5)),
+    ])
+    cdf = score.cdf(thres[None, :])
+
+    # Probability.
+    probs = jnp.zeros((nb_obs, K), dtype=jnp.float32)
+    probs = probs.at[:, 0].set(cdf[:, 0])
+    probs = probs.at[:, jnp.arange(1, K - 1)].set(cdf[:, 1:] - cdf[:, :-1])
+    probs = probs.at[:, -1].set(1. - cdf[:, -1])
+    probs = jnp.maximum(probs, 0.)
+    probs = probs / jnp.sum(probs, axis=1, keepdims=True)
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        numpyro.sample('y', dist.Categorical(probs[idx]), obs=y[idx])
+
+    # Transform back to b.
+    numpyro.deterministic('b', a / x_sds)
+    numpyro.deterministic('b0', a0 - jnp.sum(a * x_means / x_sds))

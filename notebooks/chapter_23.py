@@ -299,3 +299,40 @@ ax.set_title('Effect Size')
 ax.set_xlabel('$(\mu_B - \mu_A) / \sqrt{\sigma_A^2 + \sigma_B^2}$')
 
 fig.tight_layout()
+# -
+
+# ## The Case of Metric Predictors
+# ### Example: Happiness and Money
+
+happiness_cat = pd.CategoricalDtype([1, 2, 3, 4, 5], ordered=True)
+happiness_df = pd.read_csv(
+    'datasets/HappinessAssetsDebt.csv',
+    dtype={'Happiness': happiness_cat})
+happiness_df.info()
+
+happiness_fig, happiness_ax = plt.subplots()
+sns.stripplot(
+    x='Assets', y='Happiness',
+    data=happiness_df,
+    order=happiness_cat.categories,
+    ax=happiness_ax)
+happiness_fig.tight_layout()
+
+kernel = NUTS(glm_ordinal.yord_metric_predictors,
+              init_strategy=init_to_median)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=5000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(happiness_df['Happiness'].cat.codes.values),
+    x=jnp.array(happiness_df[['Assets']].values),
+    K=happiness_cat.categories.size,
+)
+mcmc.print_summary()
+
+idata_happiness = az.from_numpyro(
+    mcmc,
+    coords=dict(pred=['Assets']),
+    dims=dict(b=['pred'])
+)
+az.plot_trace(idata_happiness, var_names='~mu')
+plt.tight_layout()
