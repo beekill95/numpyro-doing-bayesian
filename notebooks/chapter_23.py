@@ -338,7 +338,7 @@ idata_happiness = az.from_numpyro(
 az.plot_trace(idata_happiness, var_names='~mu')
 plt.tight_layout()
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(8, 6))
 ordinal_plots.plot_ordinal_data_with_linear_trend_and_posterior(
     idata_happiness,
     latent_intercept='b0',
@@ -351,7 +351,6 @@ ordinal_plots.plot_ordinal_data_with_linear_trend_and_posterior(
     ax=ax
 )
 ax.invert_yaxis()
-ax.set_xlim(right=600000)
 fig.tight_layout()
 
 # +

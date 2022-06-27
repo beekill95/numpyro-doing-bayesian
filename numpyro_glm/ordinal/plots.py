@@ -116,4 +116,31 @@ def plot_ordinal_data_with_linear_trend_and_posterior(
         # And in our model, the first threshold is fixed at 1.5
         ax.plot(xrange, yrange - 1, c='b', alpha=.1)
 
+    # Now, we will calculate the ordinal outcomes based on MCMC samples.
+    nb_categories = len(thresholds) + 1
+    xrange = np.linspace(*ax.get_xlim(), 5)
+    max_width = 0.75 * np.abs(xrange[0] - xrange[1])
+    ax.vlines(xrange, *ax.get_ylim(), alpha=.5)
+    for x in xrange:
+        mean = b0 + b1 * x
+
+        cdf = norm.cdf((thres - mean[None, :]) / sigma[None, :])
+        probs = np.zeros((nb_categories, mean.size), dtype=np.float32)
+        probs[0] = cdf[0]
+        probs[-1] = 1. - cdf[-1]
+        probs[1:-1] = cdf[1:] - cdf[:-1]
+        probs *= max_width
+        probs_median = np.median(probs, axis=1)
+        err_95_hdi = az.hdi(probs.T - probs_median[None, :], hdi_prob=.95)
+
+        ax.barh(
+            range(nb_categories), -probs_median, left=x, color='b', alpha=.5)
+        ax.errorbar(
+            x - probs_median,
+            np.arange(nb_categories) + 0.25,
+            xerr=np.abs(err_95_hdi.T),
+            fmt='o',
+            color='gray',
+            elinewidth=3)
+
     return ax
