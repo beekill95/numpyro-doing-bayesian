@@ -314,13 +314,13 @@ happiness_fig, happiness_ax = plt.subplots()
 sns.stripplot(
     x='Assets', y='Happiness',
     data=happiness_df,
-    order=happiness_cat.categories,
+    order=happiness_cat.categories[::-1],
     ax=happiness_ax)
 happiness_fig.tight_layout()
 
 kernel = NUTS(glm_ordinal.yord_metric_predictors,
               init_strategy=init_to_median)
-mcmc = MCMC(kernel, num_warmup=1000, num_samples=5000, num_chains=4)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=10000)
 mcmc.run(
     random.PRNGKey(0),
     y=jnp.array(happiness_df['Happiness'].cat.codes.values),
