@@ -64,14 +64,56 @@ def plot_ordinal_data_with_posterior(
     probs[-1] = 1. - cdf[-1]
     probs[1:-1] = cdf[1:] - cdf[:-1]
 
-    probs_mode = np.median(probs, axis=1)
-    probs_95_hdi = az.hdi(probs.T - probs_mode[None, :], hdi_prob=.95)
+    probs_median = np.median(probs, axis=1)
+    probs_95_hdi = az.hdi(probs.T - probs_median[None, :], hdi_prob=.95)
 
     ax.errorbar(
         x=data[ordinal_predicted].cat.categories,
-        y=probs_mode,
+        y=probs_median,
         yerr=np.abs(probs_95_hdi.T),
         fmt='o',
         elinewidth=3.)
+
+    return ax
+
+
+def plot_ordinal_data_with_linear_trend_and_posterior(
+        idata: az.InferenceData, *,
+        latent_intercept: str,
+        latent_coef: str,
+        latent_sigma: str,
+        thresholds: 'list[str]',
+        data: pd.DataFrame,
+        ordinal_predicted: str,
+        metric_predictor: str,
+        nb_lin_trends: int = 20,
+        ax: plt.Axes = None):
+    if ax is None:
+        _, ax = plt.subplots()
+
+    # First, plot the data.
+    sns.stripplot(x=metric_predictor, y=ordinal_predicted, data=data, ax=ax)
+
+    # Obtain the MCMC samples.
+    posterior = idata['posterior']
+    b0 = posterior[latent_intercept].values.flatten()
+    b1 = posterior[latent_coef].values.flatten()
+    sigma = posterior[latent_sigma].values.flatten()
+    thres = np.asarray([posterior[f'{t}'].values.flatten()
+                        for t in thresholds])
+
+    # Then, we will superimpose the linear trends.
+    xrange = np.linspace(*ax.get_xlim(), 1000)
+    trend_indices = np.random.choice(
+        posterior['draw'].size * posterior['chain'].size,
+        nb_lin_trends,
+        replace=False
+    )
+    for idx in trend_indices:
+        yrange = b0[idx] + b1[idx] * xrange
+        # Minus 1 here because the axes vertical coordinate starts at 0,
+        # so category 1 maps to 0, category 2 maps to 1.
+        # And in our model, the first threshold is fixed at 1.5
+        ax.plot(xrange, yrange - 1, c='b', alpha=.1)
 
     return ax

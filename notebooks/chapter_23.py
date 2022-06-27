@@ -38,7 +38,7 @@ numpyro.set_host_device_count(4)
 #
 # ## The Case of A Single Group
 
-ord_1_df = pd.read_csv('datasets/OrdinalProbitData-1grp-1.csv')
+ord_1_df: pd.DataFrame = pd.read_csv('datasets/OrdinalProbitData-1grp-1.csv')
 yord_1_cat = pd.CategoricalDtype([1, 2, 3, 4, 5, 6, 7], ordered=True)
 ord_1_df['Y'] = ord_1_df['Y'].astype(yord_1_cat)
 
@@ -122,7 +122,7 @@ plot_ordinal_one_group_results(idata_yord_1, ord_1_df, thresholds)
 #
 # The same model but applied on different dataset.
 
-ord_2_df = pd.read_csv('datasets/OrdinalProbitData-1grp-2.csv')
+ord_2_df: pd.DataFrame = pd.read_csv('datasets/OrdinalProbitData-1grp-2.csv')
 yord_2_cat = pd.CategoricalDtype([1, 2, 3, 4, 5, 6, 7], ordered=True)
 ord_2_df['Y'] = ord_2_df['Y'].astype(yord_2_cat)
 
@@ -145,7 +145,7 @@ plot_ordinal_one_group_results(idata_yord_2, ord_2_df, thresholds)
 
 # ## The Case of Two Groups
 
-two_groups_df = pd.read_csv('datasets/OrdinalProbitData1.csv')
+two_groups_df: pd.DataFrame = pd.read_csv('datasets/OrdinalProbitData1.csv')
 two_groups_ordinal_cat = pd.CategoricalDtype([1, 2, 3, 4, 5], ordered=True)
 two_groups_df['Y'] = two_groups_df['Y'].astype(two_groups_ordinal_cat)
 two_groups_df['X'] = two_groups_df['X'].astype('category')
@@ -305,7 +305,7 @@ fig.tight_layout()
 # ### Example: Happiness and Money
 
 happiness_cat = pd.CategoricalDtype([1, 2, 3, 4, 5], ordered=True)
-happiness_df = pd.read_csv(
+happiness_df: pd.DataFrame = pd.read_csv(
     'datasets/HappinessAssetsDebt.csv',
     dtype={'Happiness': happiness_cat})
 happiness_df.info()
@@ -317,6 +317,7 @@ sns.stripplot(
     order=happiness_cat.categories[::-1],
     ax=happiness_ax)
 happiness_fig.tight_layout()
+print(happiness_ax.get_ylim())
 
 kernel = NUTS(glm_ordinal.yord_metric_predictors,
               init_strategy=init_to_median)
@@ -336,3 +337,62 @@ idata_happiness = az.from_numpyro(
 )
 az.plot_trace(idata_happiness, var_names='~mu')
 plt.tight_layout()
+
+fig, ax = plt.subplots()
+ordinal_plots.plot_ordinal_data_with_linear_trend_and_posterior(
+    idata_happiness,
+    latent_intercept='b0',
+    latent_coef='b',
+    latent_sigma='sigma',
+    thresholds=['thres_1', 'thres_2', 'thres_3', 'thres_4'],
+    data=happiness_df,
+    ordinal_predicted='Happiness',
+    metric_predictor='Assets',
+    ax=ax
+)
+ax.invert_yaxis()
+ax.set_xlim(right=600000)
+fig.tight_layout()
+
+# +
+fig: plt.Figure = plt.figure(figsize=(12, 6))
+gs = fig.add_gridspec(nrows=2, ncols=3)
+
+# Plot intercept posterior distribution.
+ax: plt.Axes = fig.add_subplot(gs[0, 0])
+az.plot_posterior(
+    idata_happiness, 'b0', hdi_prob=.95, point_estimate='mode', ax=ax)
+ax.set_title('Intercept')
+ax.set_xlabel('$\\beta_0$')
+
+# Plot coefficient for assets.
+ax: plt.Axes = fig.add_subplot(gs[0, 1])
+az.plot_posterior(
+    idata_happiness,
+    'b', coords=dict(pred='Assets'),
+    hdi_prob=.95, point_estimate='mode',
+    ax=ax)
+ax.set_title('Assets')
+ax.set_xlabel('$\\beta_1$')
+
+# Plot standard deviation.
+ax: plt.Axes = fig.add_subplot(gs[0, 2])
+az.plot_posterior(
+    idata_happiness,
+    'sigma',
+    hdi_prob=.95, point_estimate='mode',
+    ax=ax)
+ax.set_title('Std. Dev.')
+ax.set_xlabel('$\\sigma$')
+
+# Plot thresholds scatter.
+ax: plt.Axes = fig.add_subplot(gs[1, :])
+ordinal_plots.plot_threshold_scatter(
+    idata_happiness,
+    ['thres_1', 'thres_2', 'thres_3', 'thres_4'],
+    ax=ax,
+)
+ax.set_xlabel('Threshold')
+ax.set_ylabel('Mean Threshold')
+
+fig.tight_layout()
