@@ -10,22 +10,13 @@ jobs:
     strategy:
       max-parallel: 5
 
-    permissions:
-      contents: write
-
     steps:
     - uses: actions/checkout@v3
     - name: Merge main -> publish
-      uses: devmasx/merge-branch@master
-      with:
-        type: now
-        from_branch: main
-        target_branch: publish
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Switch to publish
-      uses: actions/checkout@v3
-      with:
-        ref: publish
+      run: |
+        git fetch
+        git checkout publish
+        git merge main
     - name: Set up Python 3.7
       uses: actions/setup-python@v3
       with:
