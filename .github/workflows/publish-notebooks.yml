@@ -37,8 +37,9 @@ jobs:
         poetry install
     - name: Convert .py scripts to notebooks and execute
       run: |
-        which jupyter
-        jupytext --to notebook --outdir outputs notebooks/chapter_16.py
+        mkdir -p outputs
+        jupytext --to notebook -o outputs/chapter_16.ipynb --execute notebooks/chapter_16.py
     - name: Publish notebooks to html
       run: |
-        jupyter nbconvert --to html --outdir docs outputs/chapter_16.ipynb
+        mkdir -p docs
+        jupyter nbconvert --to html --output-dir='./docs' docs outputs/chapter_16.ipynb
