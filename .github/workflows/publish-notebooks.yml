@@ -19,6 +19,8 @@ jobs:
       run: |
         git fetch
         git checkout publish
+        git config user.name "Github Actions Bot"
+        git config user.email ""
         git merge main
     - name: Set up Python 3.7
       uses: actions/setup-python@v3
