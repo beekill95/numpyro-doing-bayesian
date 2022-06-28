@@ -15,17 +15,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        ref: main
+        fetch-depth: 0
+    - name: Get current date
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d %H:%M')"
     - name: Merge main -> publish
-      uses: devmasx/merge-branch@master
-      with:
-        type: now
-        from_branch: main
-        target_branch: publish
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Switch to publish
-      uses: actions/checkout@v3
-      with:
-        ref: publish
+      run: |
+        git fetch
+        git checkout publish
+        git config user.name "Github Actions Bot"
+        git config user.email ""
+        git merge main
     - name: Set up Python 3.7
       uses: actions/setup-python@v3
       with:
@@ -37,10 +39,20 @@ jobs:
     - name: Install dependencies
       run: |
         conda env update --file environment.yml --name base
+        poetry config virtualenvs.create false
         poetry install
     - name: Convert .py scripts to notebooks and execute
       run: |
-        jupytext --to notebook --outdir outputs notebooks/chapter_16.py
+        mkdir -p outputs
+        jupytext --to notebook -o outputs/chapter_16.ipynb --execute notebooks/chapter_16.py
     - name: Publish notebooks to html
       run: |
-        jupyter nbconvert --to html --outdir docs outputs/chapter_16.ipynb
+        mkdir -p docs
+        jupyter nbconvert --to html --output-dir='./docs' outputs/chapter_16.ipynb
+    - name: Publish
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: Build and publish notebooks ${{ steps.date.outputs.date }}
+        branch: publish
+        file_pattern: docs/* outputs/*
+        add_options: '-f'
