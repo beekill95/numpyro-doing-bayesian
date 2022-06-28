@@ -41,14 +41,12 @@ jobs:
         conda env update --file environment.yml --name base
         poetry config virtualenvs.create false
         poetry install
-    - name: Convert .py scripts to notebooks and execute
-      run: |
-        mkdir -p outputs
-        jupytext --to notebook -o outputs/chapter_16.ipynb --execute notebooks/chapter_16.py
+    - name: Convert py scripts to notebooks and execute
+      run: chmod u+x .github/workflows/build_notebooks.sh && .github/workflows/build_notebooks.sh
     - name: Publish notebooks to html
       run: |
         mkdir -p docs
-        jupyter nbconvert --to html --output-dir='./docs' outputs/chapter_16.ipynb
+        jupyter nbconvert --to html --output-dir='./docs' outputs/*.ipynb
     - name: Publish
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
