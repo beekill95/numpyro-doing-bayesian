@@ -34,12 +34,11 @@ jobs:
       run: |
         conda env update --file environment.yml --name base
         poetry install
+        which jupyter
     - name: Convert .py scripts to notebooks and execute
       run: |
-        conda activate base
         which jupyter
         jupytext --to notebook --outdir outputs notebooks/chapter_16.py
     - name: Publish notebooks to html
       run: |
-        conda activate base
         jupyter nbconvert --to html --outdir docs outputs/chapter_16.ipynb
