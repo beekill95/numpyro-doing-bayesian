@@ -1,6 +1,8 @@
 name: Publish Notebooks
 
-on: [push]
+on:
+  push:
+    branches: [main]
 
 jobs:
   build-linux:
@@ -10,6 +12,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Merge main -> publish
+      uses: devmasx/merge-branch@master
+      with:
+        type: now
+        from_branch: main
+        target_branch: publish
+        github_token: ${{ github.token }}
+    - name: Switch to publish
+      uses: actions/checkout@v3
+      with:
+        ref: publish
     - name: Set up Python 3.7
       uses: actions/setup-python@v3
       with:
@@ -22,3 +35,9 @@ jobs:
       run: |
         conda env update --file environment.yml --name base
         poetry install
+    - name: Convert .py scripts to notebooks and execute
+      run: |
+        jupytext --to notebook --outdir outputs notebooks/chapter_16.py
+    - name: Publish notebooks to html
+      run: |
+        jupyter nbconvert --to html --outdir docs outputs/chapter_16.ipynb
