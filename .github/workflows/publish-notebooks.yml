@@ -18,6 +18,8 @@ jobs:
       run: |
         git fetch
         git checkout publish
+        git branch
+        git log
         git merge main
     - name: Set up Python 3.7
       uses: actions/setup-python@v3
