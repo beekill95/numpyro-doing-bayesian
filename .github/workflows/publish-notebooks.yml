@@ -10,11 +10,17 @@ jobs:
     strategy:
       max-parallel: 5
 
+    permissions:
+      contents: write
+
     steps:
     - uses: actions/checkout@v3
       with:
         ref: main
         fetch-depth: 0
+    - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d %H:%M')"
     - name: Merge main -> publish
       run: |
         git fetch
@@ -42,4 +48,11 @@ jobs:
     - name: Publish notebooks to html
       run: |
         mkdir -p docs
-        jupyter nbconvert --to html --output-dir='./docs' docs outputs/chapter_16.ipynb
+        jupyter nbconvert --to html --output-dir='./docs' outputs/chapter_16.ipynb
+    - name: Publish
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: Build and publish notebooks ${{ steps.date.outputs.date }}
+        branch: publish
+        file_pattern: docs/* outputs/*
+        add_options: '-f'
