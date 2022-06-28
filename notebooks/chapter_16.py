@@ -8,9 +8,9 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.13.8
 #   kernelspec:
-#     display_name: doing_bayes
+#     display_name: Python 3 (ipykernel)
 #     language: python
-#     name: doing_bayes
+#     name: python3
 # ---
 
 # %cd ..
