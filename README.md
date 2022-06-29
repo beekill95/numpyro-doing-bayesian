@@ -6,6 +6,7 @@ using Python and Numpyro.
 This implementation is not comprehensive,
 I'll just focus on the generalized linear model only,
 which is from chapter 16 onward.
+Suggestions for improvement are welcome!
 
 ## Chapters
 
