@@ -10,6 +10,9 @@ Suggestions for improvement are welcome!
 
 ## Chapters
 
+* Chapter 9: Hierarchical Models
+* Chapter 10: Model Comparison and Hierarchical Modelling
+* Chapter 12: Bayesian Approaches to Testing a Point ("Null") Hypothesis
 * [Chapter 16: Metric-Predicted Variable on One or Two Groups](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_16)
 * [Chapter 17: Metric Predicted Variable with one Metric Predictor](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_17)
 * [Chapter 18: Metric Predicted Variable with Multiple Metric Predictors](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_18)
@@ -18,6 +21,7 @@ Suggestions for improvement are welcome!
 * [Chapter 21: Dichotomous Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_21)
 * (WIP) [Chapter 22: Nominal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_22)
 * [Chapter 23: Ordinal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_23)
+* Chapter 24: Count Predicted Variable
 
 ## Dependencies
 
