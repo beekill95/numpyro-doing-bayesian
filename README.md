@@ -6,6 +6,18 @@ using Python and Numpyro.
 This implementation is not comprehensive,
 I'll just focus on the generalized linear model only,
 which is from chapter 16 onward.
+Suggestions for improvement are welcome!
+
+## Chapters
+
+* [Chapter 16: Metric-Predicted Variable on One or Two Groups](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_16)
+* [Chapter 17: Metric Predicted Variable with one Metric Predictor](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_17)
+* [Chapter 18: Metric Predicted Variable with Multiple Metric Predictors](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_18)
+* [Chapter 19: Metric Predicted Variable with One Nominal Predictor](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_19)
+* (WIP) [Chapter 20: Metric Predicted Variable with Multiple Nominal Predictors](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_20)
+* [Chapter 21: Dichotomous Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_21)
+* (WIP) [Chapter 22: Nominal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_22)
+* [Chapter 23: Ordinal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_23)
 
 ## Dependencies
 

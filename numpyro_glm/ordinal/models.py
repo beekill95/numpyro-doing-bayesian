@@ -31,12 +31,10 @@ def yord_single_group(y: jnp.ndarray, K: int):
         numpyro.deterministic(f'thres_{K - 1}', jnp.array(K - 0.5)),
     ])
     cdf = score.cdf(thres)
+    cdf = jnp.r_[0., cdf, 1.]
 
     # From the thresholds, calculate the probability for each category.
-    probs = jnp.zeros(K, dtype=jnp.float32)
-    probs = probs.at[0].set(cdf[0])
-    probs = probs.at[jnp.arange(1, K - 1)].set(cdf[1:] - cdf[:-1])
-    probs = probs.at[-1].set(1. - cdf[-1])
+    probs = jnp.diff(cdf)
     probs = jnp.maximum(probs, 0.)
     probs = probs / jnp.sum(probs)
 
@@ -80,12 +78,13 @@ def yord_two_groups(y: jnp.ndarray, grp: jnp.ndarray, K: int, nb_groups: int):
         numpyro.deterministic(f'thres_{K - 1}', jnp.array(K - 0.5)),
     ])
     cdf = score.cdf(thres[None, :])
+    cdf = jnp.c_[
+        jnp.repeat(jnp.array([0.]), nb_groups),
+        cdf,
+        jnp.repeat(jnp.array([1.]), nb_groups)]
 
     # Calculate probability for each group and each outcome.
-    probs = jnp.zeros((nb_groups, K), dtype=jnp.float32)
-    probs = probs.at[:, 0].set(cdf[:, 0])
-    probs = probs.at[:, jnp.arange(1, K - 1)].set(cdf[:, 1:] - cdf[:, :-1])
-    probs = probs.at[:, -1].set(1. - cdf[:, -1])
+    probs = jnp.diff(cdf, axis=-1)
     probs = jnp.maximum(probs, 0.)
     probs = probs / jnp.sum(probs, axis=1, keepdims=True)
 
@@ -126,12 +125,14 @@ def yord_metric_predictors(y: jnp.ndarray, x: jnp.ndarray, K: int):
         numpyro.deterministic(f'thres_{K - 1}', jnp.array(K - 0.5)),
     ])
     cdf = score.cdf(thres[None, :])
+    cdf = jnp.c_[
+        jnp.repeat(jnp.array([0.]), nb_obs),
+        cdf,
+        jnp.repeat(jnp.array([1.]), nb_obs),
+    ]
 
     # Probability.
-    probs = jnp.zeros((nb_obs, K), dtype=jnp.float32)
-    probs = probs.at[:, 0].set(cdf[:, 0])
-    probs = probs.at[:, jnp.arange(1, K - 1)].set(cdf[:, 1:] - cdf[:, :-1])
-    probs = probs.at[:, -1].set(1. - cdf[:, -1])
+    probs = jnp.diff(cdf, axis=-1)
     probs = jnp.maximum(probs, 0.)
     probs = probs / jnp.sum(probs, axis=1, keepdims=True)
 
