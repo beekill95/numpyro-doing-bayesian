@@ -57,8 +57,35 @@ mcmc.run(
 )
 mcmc.print_summary()
 
-idata = az.from_numpyro(mcmc)
+idata = az.from_numpyro(
+    mcmc,
+    coords=dict(group=data1_df['Y'].cat.categories,
+              pred=['X1', 'X2']),
+    dims=dict(b0=['group'], b=['group', 'pred']),
+)
 az.plot_trace(idata, ['b0', 'b'])
 plt.tight_layout()
+
+# +
+fig, axes = plt.subplots(
+    nrows=data1_df['Y'].cat.categories.size, ncols=3, figsize=(12, 16))
+
+posterior = idata.posterior
+for i, group in enumerate(data1_df['Y'].cat.categories):
+    if i == 0:
+        # TODO: right now, plotting the first (ref) category,
+        # will make the plot super ugly.
+        continue
+
+    for j, coeff in enumerate(['b0', 'X1', 'X2']):
+        ax = axes[i, j]
+        vals = (posterior['b0'].sel(group=group) if coeff == 'b0'
+                else posterior['b'].sel(group=group, pred=coeff)).values.flatten()
+
+        az.plot_posterior(vals, kind='hist', point_estimate='mode', hdi_prob=0.95, ax=ax)
+        ax.set_title(f'Out: {group}. Pred: {coeff}')
+
+fig.tight_layout()
+# -
 
 # ## Conditional Logistic Model
