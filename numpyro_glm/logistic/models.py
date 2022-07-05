@@ -163,10 +163,18 @@ def binom_one_nominal_predictor_het(y: jnp.ndarray, grp: jnp.ndarray, N: jnp.nda
     numpyro.deterministic('b', m - b0)
 
 
-def softmax_multi_metric_predictors(y: jnp.ndarray, x: jnp.ndarray):
+def softmax_multi_metric_predictors(y: jnp.ndarray, x: jnp.ndarray, K: int):
     """
+    Reference group is default to be the first group.
+
     Parameters
     ----------
+    y: jnp.ndarray
+        Nominal predicted variable.
+    x: jnp.ndarray
+        Metric predictors.
+    K: int
+        Number of different categories in `y`
     """
     assert y.shape[0] == x.shape[0]
     assert x.ndim == 2
@@ -179,19 +187,22 @@ def softmax_multi_metric_predictors(y: jnp.ndarray, x: jnp.ndarray):
     x_sd = jnp.std(x, axis=0)
 
     # Normalize x.
-    x_z = (x - x_mean) / x_sd
+    xz = (x - x_mean) / x_sd
 
     # Specify priors for intercept term.
-    _a0 = numpyro.sample('_a0', dist.Normal(0, 2))
+    a0 = numpyro.sample('__a0', dist.Normal(0, 2).expand([K - 1]))
+    a0 = numpyro.deterministic('_a0', jnp.r_[0., a0])
 
     # Specify priors for coefficient terms.
-    _a = numpyro.sample('_a', dist.Normal(0, 2).expand((nb_pred, )))
+    a = numpyro.sample('__a', dist.Normal(0, 2).expand([K - 1, nb_preds]))
+    a = numpyro.deterministic(
+        '_a', jnp.r_[jnp.repeat(0., nb_preds)[None, ...], a])
 
     # Observations.
     with numpyro.plate('obs', nb_obs) as idx:
-        logit = _a0 + jnp.dot(x_z[idx], _a)
-        numpyro.sample('y', dist.BernoulliLogits(logit), obs=y[idx])
+        logits = a0 + xz[idx] @ a.T
+        numpyro.sample('y', dist.CategoricalLogits(logits), obs=y[idx])
 
     # Transform back to beta.
-    numpyro.deterministic('b0', _a0 - jnp.dot(_a, x_mean / x_sd))
-    numpyro.deterministic('b', _a / x_sd)
+    numpyro.deterministic('b0', a0 - jnp.dot(a, x_mean / x_sd))
+    numpyro.deterministic('b', a / x_sd)

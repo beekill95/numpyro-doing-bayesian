@@ -37,6 +37,28 @@ numpyro.set_host_device_count(4)
 # -
 
 # # Chapter 22: Nominal Predicted Variable
-# ## Softmax Model
+# ## Softmax Regression
+
+data1_df: pd.DataFrame = pd.read_csv(
+    'datasets/SoftmaxRegData1.csv', dtype={'Y': 'category'})
+data1_df.info()
+
+sns.scatterplot(x='X1', y='X2', style='Y', hue='Y', data=data1_df)
+plt.tight_layout()
+
+kernel = NUTS(glm_logistic.softmax_multi_metric_predictors,
+              init_strategy=init_to_median)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(data1_df['Y'].cat.codes.values),
+    x=jnp.array(data1_df[['X1', 'X2']].values),
+    K=data1_df['Y'].cat.categories.size,
+)
+mcmc.print_summary()
+
+idata = az.from_numpyro(mcmc)
+az.plot_trace(idata, ['b0', 'b'])
+plt.tight_layout()
 
 # ## Conditional Logistic Model
