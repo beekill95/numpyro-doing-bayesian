@@ -190,11 +190,11 @@ def softmax_multi_metric_predictors(y: jnp.ndarray, x: jnp.ndarray, K: int):
     xz = (x - x_mean) / x_sd
 
     # Specify priors for intercept term.
-    a0 = numpyro.sample('__a0', dist.Normal(0, 2).expand([K - 1]))
+    a0 = numpyro.sample('__a0', dist.Normal(0, 20).expand([K - 1]))
     a0 = numpyro.deterministic('_a0', jnp.r_[0., a0])
 
     # Specify priors for coefficient terms.
-    a = numpyro.sample('__a', dist.Normal(0, 2).expand([K - 1, nb_preds]))
+    a = numpyro.sample('__a', dist.Normal(0, 20).expand([K - 1, nb_preds]))
     a = numpyro.deterministic(
         '_a', jnp.r_[jnp.repeat(0., nb_preds)[None, ...], a])
 

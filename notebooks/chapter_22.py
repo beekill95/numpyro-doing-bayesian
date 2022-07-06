@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
 from numpyro.infer import MCMC, NUTS
-from numpyro.infer.initialization import init_to_median
+from numpyro.infer.initialization import init_to_feasible, init_to_median
 import numpyro_glm
 import numpyro_glm.logistic.models as glm_logistic
 import pandas as pd
@@ -60,7 +60,7 @@ mcmc.print_summary()
 idata = az.from_numpyro(
     mcmc,
     coords=dict(group=data1_df['Y'].cat.categories,
-              pred=['X1', 'X2']),
+                pred=['X1', 'X2']),
     dims=dict(b0=['group'], b=['group', 'pred']),
 )
 az.plot_trace(idata, ['b0', 'b'])
@@ -82,10 +82,73 @@ for i, group in enumerate(data1_df['Y'].cat.categories):
         vals = (posterior['b0'].sel(group=group) if coeff == 'b0'
                 else posterior['b'].sel(group=group, pred=coeff)).values.flatten()
 
-        az.plot_posterior(vals, kind='hist', point_estimate='mode', hdi_prob=0.95, ax=ax)
+        az.plot_posterior(vals, kind='hist',
+                          point_estimate='mode', hdi_prob=0.95, ax=ax)
         ax.set_title(f'Out: {group}. Pred: {coeff}')
 
 fig.tight_layout()
 # -
 
+
 # ## Conditional Logistic Model
+#
+# ### Model 1
+# ![](figures/c22_conditional_model_1.png)
+
+# +
+from jax.scipy.special import expit  # noqa
+import numpyro.distributions as dist  # noqa
+
+
+def conditional_model_1(y: jnp.ndarray, x: jnp.ndarray, K: int):
+    assert y.shape[0] == x.shape[0]
+    assert K == 4, 'This only works with 4 nominal outcomes.'
+    assert x.shape[1] == 2, 'This only works with 2 metric predictors.'
+
+    nb_obs = y.shape[0]
+    nb_preds = x.shape[1]
+
+    # Metric predictors statistics.
+    x_mean = jnp.mean(x, axis=0)
+    x_sd = jnp.std(x, axis=0)
+
+    # Normalize x.
+    xz = (x - x_mean) / x_sd
+
+    a0 = numpyro.sample('_a0', dist.Normal(0, 2).expand([K - 1]))
+    a = numpyro.sample('_a', dist.Normal(0, 2).expand([K - 1, nb_preds]))
+
+    phi = expit(a0[None, ...] + xz @ a.T)
+
+    # This is the part where we actually calculate the probability of each nominal outcome.
+    # Probability of getting the first outcome is phi[:, 0]
+    mu0 = phi[:, 0]
+
+    # Probability of getting the second outcome is: (1 - phi[:, 0]) * phi[:, 1],
+    # which essentially means it first not belongs to the first outcome,
+    # and has to belong to the second outcome.
+    mu1 = phi[:, 1] * (1 - phi[:, 0])
+
+    # Similarly, the probability of the third outcome is
+    # (1 - phi[:, 0]) * (1 - phi[:, 1]) * phi[:, 2]
+    mu2 = phi[:, 2] * (1 - phi[:, 1]) * (1 - phi[:, 0])
+
+    # And the last outcome is:
+    mu3 = (1 - phi[:, 2]) * (1 - phi[:, 1]) * (1 - phi[:, 0])
+    mu = jnp.c_[mu0, mu1, mu2, mu3]
+
+    with numpyro.plate('obs', nb_obs) as idx:
+        numpyro.sample('y', dist.Categorical(mu[idx]), obs=y[idx])
+
+
+kernel = NUTS(conditional_model_1,
+              init_strategy=init_to_median,
+              target_accept_prob=.95)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=5000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(data1_df['Y'].cat.codes.values),
+    x=jnp.array(data1_df[['X1', 'X2']].values),
+    K=data1_df['Y'].cat.categories.size,
+)
+mcmc.print_summary()
