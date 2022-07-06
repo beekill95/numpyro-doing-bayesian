@@ -19,7 +19,7 @@ Suggestions for improvement are welcome!
 * [Chapter 19: Metric Predicted Variable with One Nominal Predictor](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_19)
 * (WIP) [Chapter 20: Metric Predicted Variable with Multiple Nominal Predictors](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_20)
 * [Chapter 21: Dichotomous Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_21)
-* (WIP) [Chapter 22: Nominal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_22)
+* [Chapter 22: Nominal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_22)
 * [Chapter 23: Ordinal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_23)
 * Chapter 24: Count Predicted Variable
 
