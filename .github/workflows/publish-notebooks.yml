@@ -46,7 +46,7 @@ jobs:
     - name: Publish notebooks to html
       run: |
         mkdir -p docs
-        jupyter nbconvert --to html --embed-images --template classic --output-dir='./docs' outputs/*.ipynb
+        jupyter nbconvert --to html --embed-images --template classic --output-dir='./docs' notebooks/*.ipynb
     - name: Publish
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
