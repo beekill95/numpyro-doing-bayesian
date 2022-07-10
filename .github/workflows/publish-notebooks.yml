@@ -52,5 +52,5 @@ jobs:
       with:
         commit_message: Build and publish notebooks ${{ steps.date.outputs.date }}
         branch: publish
-        file_pattern: docs/* outputs/*
+        file_pattern: docs/* notebooks/*
         add_options: '-f'
