@@ -21,7 +21,7 @@ Suggestions for improvement are welcome!
 * [Chapter 21: Dichotomous Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_21)
 * [Chapter 22: Nominal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_22)
 * [Chapter 23: Ordinal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_23)
-* Chapter 24: Count Predicted Variable
+* [Chapter 24: Count Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_24)
 
 ## Dependencies
 
