@@ -57,9 +57,63 @@ mcmc.print_summary()
 
 idata = az.from_numpyro(
     mcmc,
-    dims=dict(
+    coords=dict(
         Hair=hair_eye_df['Hair'].cat.categories,
         Eye=hair_eye_df['Eye'].cat.categories),
-    coords=dict(b1=['Eye'], b2=['Hair'], b1b2=['Eye', 'Hair']))
+    dims=dict(
+        b1=['Eye'], b2=['Hair'],
+        b1b2=['Eye', 'Hair'],
+        P=['Eye', 'Hair'],
+        P_x1=['Eye'], P_x2=['Hair'])
+    )
 az.plot_trace(idata, ['b1', 'b2', 'b1b2'])
 plt.tight_layout()
+
+# +
+fig, axes = plt.subplots(
+    nrows=hair_eye_df['Eye'].cat.categories.size,
+    ncols=hair_eye_df['Hair'].cat.categories.size,
+    figsize=(16, 16))
+
+posterior = idata['posterior']
+for i, eye in enumerate(hair_eye_df['Eye'].cat.categories):
+    for j, hair in enumerate(hair_eye_df['Hair'].cat.categories):
+        ax = axes[i, j]
+        p = posterior['P'].sel(Eye=eye, Hair=hair).values
+        az.plot_posterior(p, hdi_prob=.95, point_estimate='mode', ax=ax)
+        ax.set_title(f'Eye: {eye} - Hair: {hair}')
+
+fig.tight_layout()
+
+# +
+fig, axes = plt.subplots(ncols=3, figsize=(12, 4))
+
+blue_eye_black_hair = posterior['b1b2'].sel(Eye='Blue', Hair='Black').values
+brown_eye_black_hair = posterior['b1b2'].sel(Eye='Brown', Hair='Black').values
+
+blue_eye_blond_hair = posterior['b1b2'].sel(Eye='Blue', Hair='Blond').values
+brown_eye_blond_hair = posterior['b1b2'].sel(Eye='Brown', Hair='Blond').values
+
+diff_black = blue_eye_black_hair - brown_eye_black_hair
+diff_blond = blue_eye_blond_hair - brown_eye_blond_hair
+diff = diff_black - diff_blond
+
+ax = axes[0]
+az.plot_posterior(
+    diff_black, hdi_prob=.95, point_estimate='mode', ref_val=0, rope=(-0.1, 0.1), ax=ax)
+ax.set_title('Blue - Brown @ Black')
+ax.set_xlabel('Beta Deflect. Diff.')
+
+ax = axes[1]
+az.plot_posterior(
+    diff_blond, hdi_prob=.95, point_estimate='mode', ref_val=0, rope=(-0.1, 0.1), ax=ax)
+ax.set_title('Blue - Brown @ Blond')
+ax.set_xlabel('Beta Deflect. Diff.')
+
+ax = axes[2]
+az.plot_posterior(
+    diff, hdi_prob=.95, point_estimate='mode', ref_val=0, rope=(-0.1, 0.1), ax=ax)
+ax.set_title('Blue.v.Brown\n(x)\nBlack.v.Blond')
+ax.set_xlabel('Beta Deflect. Diff. of Diff.')
+
+fig.tight_layout()

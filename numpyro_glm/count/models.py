@@ -51,3 +51,9 @@ def two_nominal_predictors(
     b1 = numpyro.deterministic('b1', jnp.mean(m, axis=1) - b0)
     b2 = numpyro.deterministic('b2', jnp.mean(m, axis=0) - b0)
     numpyro.deterministic('b1b2', m - (b0 + b1[:, None] + b2[None, :]))
+
+    # Compute predicted proportions.
+    m_exp = jnp.exp(m)
+    pp_x1x2 = numpyro.deterministic('P', m_exp / jnp.sum(m_exp))
+    numpyro.deterministic('P_x1', jnp.sum(pp_x1x2, axis=1))
+    numpyro.deterministic('P_x2', jnp.sum(pp_x1x2, axis=0))
