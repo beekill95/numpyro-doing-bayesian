@@ -1,0 +1,37 @@
+{% extends 'classic/index.html.j2' %}
+
+{% block html_head %}
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FJ8SBYX18C"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-FJ8SBYX18C');
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-166301939-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-166301939-1');
+</script>
+
+{{ super() }}
+
+{% endblock html_head %}
+
+{% block input %}
+{{ super() }}
+{% endblock input %}
+
+{% block output_prompt %}
+{% endblock output_prompt %}
+
+{% block in_prompt %}
+{% endblock in_prompt %}
