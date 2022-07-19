@@ -189,7 +189,7 @@ idata = az.from_numpyro(
     mcmc,
     coords=dict(
         position=baseball_df['PriPos'].cat.categories,
-        player=baseball_df['Player'].cat.categories,
+        player=baseball_df['Player'],
     ),
     dims=dict(
         omega_pos=['position'],
@@ -284,3 +284,20 @@ plot_player_ability(idata, ['ShinSoo Choo', 'Ichiro Suzuki'])
 
 plot_player_ability(idata, ['Mike Leake', 'Wandy Rodriguez'])
 plot_player_ability(idata, ['Andrew McCutchen', 'Brett Jackson'])
+
+az.plot_posterior(idata, 'omega', hdi_prob=.95, point_estimate='mode')
+
+# +
+fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(9, 9))
+
+for ax, position in zip(axes.flatten(), baseball_df['PriPos'].cat.categories):
+    az.plot_posterior(
+        idata,
+        var_names='omega_pos',
+        coords=dict(position=position),
+        hdi_prob=.95,
+        point_estimate='mode',
+        ax=ax)
+    ax.set_title(position)
+
+fig.tight_layout()
