@@ -135,3 +135,49 @@ for r, c in np.ndindex(axes.shape):
         ax.set_ylabel(f'theta[{r_theta}]')
 
 fig.tight_layout()
+# -
+
+# ## Extending the Hierarchy: Subjects within Categories
+# ### Example: Baseball Batting Abilities by Position
+
+baseball_df: pd.DataFrame = pd.read_csv(
+    'datasets/BattingAverage.csv',
+    dtype=dict(PriPos='category', Player='category'))
+baseball_df.info()
+
+
+# + tags=[]
+def baseball_batting_model(y: jnp.ndarray, pos: jnp.ndarray, at_bats: jnp.ndarray, nb_pos: int):
+    assert y.shape[0] == pos.shape[0] == at_bats.shape[0]
+    nb_obs = y.shape[0]
+
+    # All positions' overall ability.
+    omega = numpyro.sample('omega', dist.Beta(1, 1))
+    kappa_minus_two = numpyro.sample(
+        '_kappa-2', dist_utils.gammaDistFromModeStd(1, 10))
+    kappa = numpyro.deterministic('kappa', kappa_minus_two + 2)
+
+    # Each position's ability.
+    omega_pos = numpyro.sample(
+        'omega_pos', dist_utils.beta_dist_from_omega_kappa(omega, kappa).expand([nb_pos]))
+    kappa_pos_minus_two = numpyro.sample(
+        '_kappa_pos-2', dist_utils.gammaDistFromModeStd(1, 10).expand([nb_pos]))
+    kappa_pos = numpyro.deterministic('kappa_pos', kappa_pos_minus_two + 2)
+
+    # Each player's ability.
+    with numpyro.plate('obs', nb_obs) as idx:
+        ability = numpyro.sample(
+            'ability', dist_utils.beta_dist_from_omega_kappa(omega_pos[pos[idx]], kappa_pos[pos[idx]]))
+        numpyro.sample('y', dist.Binomial(at_bats[idx], ability), obs=y[idx])
+
+
+kernel = NUTS(baseball_batting_model)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(baseball_df['Hits'].values),
+    pos=jnp.array(baseball_df['PriPos'].cat.codes.values),
+    at_bats=jnp.array(baseball_df['AtBats'].values),
+    nb_pos=baseball_df['PriPos'].cat.categories.size,
+)
+mcmc.print_summary()
