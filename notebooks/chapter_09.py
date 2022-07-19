@@ -28,6 +28,7 @@ import numpyro.distributions as dist
 import numpyro_glm.utils.dist as dist_utils
 from numpyro.infer import MCMC, NUTS
 import pandas as pd
+import seaborn as sns
 
 numpyro.set_host_device_count(4)
 # -
@@ -72,3 +73,65 @@ mcmc.run(
     nb_subjects=therapeutic_df['s'].cat.categories.size,
 )
 mcmc.print_summary()
+
+idata = az.from_numpyro(
+    mcmc,
+    coords=dict(subject=therapeutic_df['s'].cat.categories),
+    dims=dict(theta=['subject']))
+az.plot_trace(idata)
+plt.tight_layout()
+
+# +
+fig, axes = plt.subplots(ncols=2, figsize=(8, 4))
+
+ax = axes[0]
+az.plot_posterior(idata, var_names='kappa',
+                  point_estimate='mode', hdi_prob=.95, ax=ax)
+ax.set_xlabel('$\\kappa$')
+
+ax = axes[1]
+az.plot_posterior(idata, var_names='omega',
+                  point_estimate='mode', hdi_prob=.95, ref_val=0.5, ax=ax)
+ax.set_title('Group Mode')
+ax.set_xlabel('$\\omega$')
+
+fig.tight_layout()
+
+# +
+fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(12, 12))
+theta_to_plot = ['S01', 'S14', 'S28']
+
+for r, c in np.ndindex(axes.shape):
+    ax = axes[r, c]
+    r_theta = theta_to_plot[r]
+    c_theta = theta_to_plot[c]
+
+    if r == c:
+        az.plot_posterior(
+            idata, 'theta',
+            coords=dict(subject=r_theta),
+            hdi_prob=.95,
+            point_estimate='mode',
+            ref_val=.5,
+            ax=ax)
+        ax.set_title(f'theta[{r_theta}]')
+    elif r < c:
+        diff = (idata['posterior']['theta'].sel(subject=r_theta).values
+                - idata['posterior']['theta'].sel(subject=c_theta).values)
+        az.plot_posterior(
+            diff, hdi_prob=.95, point_estimate='mode', ref_val=0, ax=ax)
+        ax.set_title(f'theta[{r_theta}] - theta[{c_theta}]')
+        ax.set_xlabel('Diff')
+    else:
+        y = idata['posterior']['theta'].sel(subject=r_theta).values.flatten()
+        x = idata['posterior']['theta'].sel(subject=c_theta).values.flatten()
+
+        sns.scatterplot(x=x, y=y, ax=ax)
+
+        xx = np.linspace(*ax.get_xlim(), 1000)
+        sns.lineplot(x=xx, y=xx, ax=ax, color='k', linestyle='dashed')
+
+        ax.set_xlabel(f'theta[{c_theta}]')
+        ax.set_ylabel(f'theta[{r_theta}]')
+
+fig.tight_layout()
