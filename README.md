@@ -10,7 +10,7 @@ Suggestions for improvement are welcome!
 
 ## Chapters
 
-* Chapter 9: Hierarchical Models
+* [Chapter 9: Hierarchical Models](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_09)
 * Chapter 10: Model Comparison and Hierarchical Modelling
 * Chapter 12: Bayesian Approaches to Testing a Point ("Null") Hypothesis
 * [Chapter 16: Metric-Predicted Variable on One or Two Groups](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_16)
