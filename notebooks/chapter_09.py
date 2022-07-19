@@ -18,6 +18,8 @@
 # %autoreload 2
 
 # +
+from __future__ import annotations
+
 import arviz as az
 import jax.numpy as jnp
 import jax.random as random
@@ -52,7 +54,7 @@ def therapeutic_touch(y: jnp.ndarray, s: jnp.ndarray, nb_subjects: int):
 
     # Kappa prior.
     kappa_minus_two = numpyro.sample(
-        '_kappa-2', dist_utils.gammaDistFromModeStd(1, 10))
+        '_kappa-2', dist_utils.gamma_dist_from_mean_std(1, 10))
     kappa = numpyro.deterministic('kappa', kappa_minus_two + 2)
 
     # Each subject's ability.
@@ -154,14 +156,14 @@ def baseball_batting_model(y: jnp.ndarray, pos: jnp.ndarray, at_bats: jnp.ndarra
     # All positions' overall ability.
     omega = numpyro.sample('omega', dist.Beta(1, 1))
     kappa_minus_two = numpyro.sample(
-        '_kappa-2', dist_utils.gammaDistFromModeStd(1, 10))
+        '_kappa-2', dist_utils.gamma_dist_from_mean_std(1, 10))
     kappa = numpyro.deterministic('kappa', kappa_minus_two + 2)
 
     # Each position's ability.
     omega_pos = numpyro.sample(
         'omega_pos', dist_utils.beta_dist_from_omega_kappa(omega, kappa).expand([nb_pos]))
     kappa_pos_minus_two = numpyro.sample(
-        '_kappa_pos-2', dist_utils.gammaDistFromModeStd(1, 10).expand([nb_pos]))
+        '_kappa_pos-2', dist_utils.gamma_dist_from_mean_std(1, 10).expand([nb_pos]))
     kappa_pos = numpyro.deterministic('kappa_pos', kappa_pos_minus_two + 2)
 
     # Each player's ability.
@@ -181,3 +183,104 @@ mcmc.run(
     nb_pos=baseball_df['PriPos'].cat.categories.size,
 )
 mcmc.print_summary()
+# -
+
+idata = az.from_numpyro(
+    mcmc,
+    coords=dict(
+        position=baseball_df['PriPos'].cat.categories,
+        player=baseball_df['Player'].cat.categories,
+    ),
+    dims=dict(
+        omega_pos=['position'],
+        kappa_pos=['position'],
+        ability=['player'],
+    ),
+)
+az.plot_trace(idata, var_names='~ability')
+plt.tight_layout()
+
+
+# +
+def plot_position_ability(idata: az.InferenceData, positions: list[str]):
+    nb_pos = len(positions)
+    fig, axes = plt.subplots(nrows=nb_pos, ncols=nb_pos, figsize=(6, 6))
+
+    omega = idata['posterior']['omega_pos']
+
+    for r, c in np.ndindex(axes.shape):
+        ax = axes[r, c]
+        r_pos = positions[r]
+        c_pos = positions[c]
+
+        if r == c:
+            az.plot_posterior(
+                idata, var_names='omega_pos', coords=dict(position=r_pos),
+                hdi_prob=.95, point_estimate='mode', ax=ax)
+            ax.set_title(f'{r_pos}')
+            ax.set_xlabel('$\\omega$')
+        elif r < c:
+            diff = (omega.sel(position=r_pos).values
+                    - omega.sel(position=c_pos).values)
+            az.plot_posterior(
+                diff, hdi_prob=.95, point_estimate='mode', ref_val=0, ax=ax)
+            ax.set_title(f'{r_pos} - {c_pos}')
+            ax.set_xlabel('Diff. of $\\omega$')
+        else:
+            x = omega.sel(position=c_pos).values.flatten()
+            y = omega.sel(position=r_pos).values.flatten()
+
+            sns.scatterplot(x=x, y=y, ax=ax)
+            ax.set_xlabel(f'{c_pos}')
+            ax.set_ylabel(f'{r_pos}')
+
+    fig.tight_layout()
+
+
+plot_position_ability(idata, ['Pitcher', 'Catcher'])
+plot_position_ability(idata, ['Catcher', '1st Base'])
+
+
+# +
+def plot_player_ability(idata: az.InferenceData, players: list[str]):
+    nb_players = len(players)
+    fig, axes = plt.subplots(
+        nrows=nb_players, ncols=nb_players, figsize=(6, 6))
+
+    ability = idata['posterior']['ability']
+
+    for r, c in np.ndindex(axes.shape):
+        ax = axes[r, c]
+        r_player = players[r]
+        c_player = players[c]
+
+        if r == c:
+            az.plot_posterior(
+                idata, var_names='ability', coords=dict(player=r_player),
+                hdi_prob=.95, point_estimate='mode', ax=ax)
+            ax.set_title(f'{r_player}')
+            ax.set_xlabel('$\\omega$')
+        elif r < c:
+            diff = (ability.sel(player=r_player).values
+                    - ability.sel(player=c_player).values)
+            az.plot_posterior(
+                diff, hdi_prob=.95, point_estimate='mode', ref_val=0, ax=ax)
+            ax.set_title(f'{r_player} - {c_player}')
+            ax.set_xlabel('Diff. of $\\omega$')
+        else:
+            x = ability.sel(player=c_player).values.flatten()
+            y = ability.sel(player=r_player).values.flatten()
+
+            sns.scatterplot(x=x, y=y, ax=ax)
+            ax.set_xlabel(f'{c_player}')
+            ax.set_ylabel(f'{r_player}')
+
+    fig.tight_layout()
+
+
+plot_player_ability(idata, ['Kyle Blanks', 'Bruce Chen'])
+plot_player_ability(idata, ['ShinSoo Choo', 'Ichiro Suzuki'])
+# -
+
+plot_player_ability(idata, ['Mike Leake', 'Wandy Rodriguez'])
+plot_player_ability(idata, ['Andrew McCutchen', 'Brett Jackson'])
