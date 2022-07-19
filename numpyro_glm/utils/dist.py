@@ -13,5 +13,13 @@ def gammaDistFromModeStd(mode, std):
     return dist.Gamma(shape, rate)
 
 
+def gamma_dist_from_mean_std(mean, std):
+    std_squared = std**2
+    shape = mean**2 / std_squared
+    rate = mean / std_squared
+
+    return dist.Gamma(shape, rate)
+
+
 def beta_dist_from_omega_kappa(omega, kappa):
     return dist.Beta(omega * (kappa - 2) + 1, (1 - omega) * (kappa - 2) + 1)
