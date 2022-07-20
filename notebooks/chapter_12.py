@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
 import numpyro.distributions as dist
+from numpyro.infer.initialization import init_to_median
 import numpyro_glm.utils.dist as dist_utils
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
 import pandas as pd
@@ -62,6 +63,7 @@ music_df.info()
 
 
 # +
+# Wrong implementation, still don't understand why it gives wrong results?
 def words_recall_in_different_music_genres_model_comparison(
         genre: jnp.ndarray, nb_trials: jnp.ndarray, nb_corrects: jnp.ndarray, nb_genres: int):
     assert genre.shape[0] == nb_trials.shape[0] == nb_corrects.shape[0]
@@ -79,33 +81,79 @@ def words_recall_in_different_music_genres_model_comparison(
     # Model 0's omegas.
     a = jnp.repeat(aP, nb_genres)
     b = jnp.repeat(bP, nb_genres)
-    omegas = numpyro.sample('omegas', dist.Beta(a, b))
+    omega = numpyro.sample('omega', dist.Beta(a, b))
 
-    # Model 1's omega0.
+    # Model 1's omega1.
     a0 = aP
     b0 = bP
-    omega0 = numpyro.sample('omega0', dist.Beta(a0, b0).expand([nb_genres]))
-
-    # The omega to be used will depend on the model chosen.
-    omega = numpyro.deterministic(
-        'omega', jnp.where(model == 0, omegas, omega0))
+    # correspond to omega0 in the book.
+    omega1 = numpyro.sample('omega1', dist.Beta(a0, b0))
 
     # Kappa's prior.
     kappa_minus_two = numpyro.sample(
         '_kappa-2', dist_utils.gammaDistFromModeStd(20, 20).expand([nb_genres]))
     kappa = numpyro.deterministic('kappa', kappa_minus_two + 2)
 
+    ome = jnp.where(model == 0, omega, omega1)
+    aBeta = ome * (kappa - 2) + 1
+    bBeta = (1 - ome) * (kappa - 2) + 1
+
     # Observations.
     with numpyro.plate('obs', nb_obs) as idx:
-        recall = numpyro.sample(
-            'recall', dist_utils.beta_dist_from_omega_kappa(omega[genre[idx]],
-                                                            kappa[genre[idx]]))
+        theta = numpyro.sample(
+            'theta', dist.Beta(aBeta[genre[idx]], bBeta[genre[idx]]))
         numpyro.sample(
-            'correct', dist.Binomial(nb_trials[idx], recall), obs=nb_corrects[idx])
+            'correct', dist.Binomial(nb_trials[idx], theta), obs=nb_corrects[idx])
+
+
+# Correct implementation.
+def words_recall_in_different_music_genres_model_comparison_1(
+        genre: jnp.ndarray, nb_trials: jnp.ndarray, nb_corrects: jnp.ndarray, nb_genres: int):
+    assert genre.shape[0] == nb_trials.shape[0] == nb_corrects.shape[0]
+    nb_obs = genre.shape[0]
+
+    # We will compare between two models:
+    # * Model 0 uses condition-specific omega,
+    # * Model 1 uses the same omega for all conditions.
+    model_probs = jnp.array([0.5, 0.5])
+    model = numpyro.sample('model', dist.Categorical(model_probs))
+
+    aP = 1.
+    bP = 1.
+
+    # Model 0's omegas.
+    a = jnp.c_[jnp.repeat(aP, nb_genres),
+               [.40 * 125, .50 * 125, .51 * 125, .52 * 125]]
+    b = jnp.c_[jnp.repeat(bP, nb_genres),
+               [.60 * 125, .50 * 125, .49 * 125, .48 * 125]]
+    omega = numpyro.sample('omega', dist.Beta(a[:, model], b[:, model]))
+
+    # Model 1's omega1.
+    a0 = jnp.array([.48 * 500, aP])
+    b0 = jnp.array([.52 * 500, bP])
+    # correspond to omega0 in the book.
+    omega1 = numpyro.sample('omega1', dist.Beta(a0[model], b0[model]))
+
+    # Kappa's prior.
+    kappa_minus_two = numpyro.sample(
+        '_kappa-2', dist_utils.gammaDistFromModeStd(20, 20).expand([nb_genres]))
+    kappa = numpyro.deterministic('kappa', kappa_minus_two + 2)
+
+    ome = jnp.where(model == 0, omega, omega1)
+    aBeta = ome * (kappa - 2) + 1
+    bBeta = (1 - ome) * (kappa - 2) + 1
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        theta = numpyro.sample(
+            'theta', dist.Beta(aBeta[genre[idx]], bBeta[genre[idx]]))
+        numpyro.sample(
+            'correct', dist.Binomial(nb_trials[idx], theta), obs=nb_corrects[idx])
 
 
 kernel = DiscreteHMCGibbs(
-    NUTS(words_recall_in_different_music_genres_model_comparison))
+    NUTS(words_recall_in_different_music_genres_model_comparison_1,
+         init_strategy=init_to_median))
 mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(
     random.PRNGKey(0),
@@ -120,8 +168,7 @@ mcmc.print_summary()
 idata = az.from_numpyro(
     mcmc,
     coords=dict(genre=music_df['CondOfSubj'].cat.categories),
-    dims=dict(
-        omega0=['genre'], omegas=['genre'], omega=['genre'], kappa=['genre']))
+    dims=dict(omega=['genre'], kappa=['genre']))
 az.plot_trace(idata)
 plt.tight_layout()
 
