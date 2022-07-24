@@ -89,6 +89,13 @@ print(1. / one_over_pD)
 
 # ### Hierarchical MCMC Computation of Relative Model Probability
 
+# Data
+
+N = 30
+z = int(np.ceil(N * .55))
+y = jnp.r_[jnp.zeros(N - z), jnp.ones(z)]
+
+
 # +
 def model_hier(y: jnp.ndarray):
     nb_obs = y.shape[0]
@@ -111,7 +118,7 @@ kernel = DiscreteHMCGibbs(NUTS(model_hier))
 mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(
     random.PRNGKey(0),
-    y=jnp.r_[jnp.zeros(3), jnp.ones(6)],
+    y=y,
 )
 mcmc.print_summary()
 # -
@@ -168,11 +175,11 @@ def model_hier_2(y: jnp.ndarray):
 
     # Prior for theta 0 (corresponds to theta1 in the book).
     theta0 = numpyro.sample(
-        'theta0', dist_utils.beta_dist_from_omega_kappa(.25, 12))
+        'theta0', dist_utils.beta_dist_from_omega_kappa(.10, 20))
 
     # Prior for theta 1 (corresponds to theta2 in the book).
     theta1 = numpyro.sample(
-        'theta1', dist_utils.beta_dist_from_omega_kappa(.75, 12))
+        'theta1', dist_utils.beta_dist_from_omega_kappa(.90, 20))
 
     # Theta will be based on how the m is.
     theta = numpyro.deterministic('theta', jnp.where(m == 0, theta0, theta1))
@@ -186,7 +193,7 @@ kernel = DiscreteHMCGibbs(NUTS(model_hier_2))
 mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(
     random.PRNGKey(0),
-    y=jnp.r_[jnp.zeros(3), jnp.ones(6)],
+    y=y,
 )
 mcmc.print_summary()
 # -
@@ -194,6 +201,65 @@ mcmc.print_summary()
 idata = az.from_numpyro(mcmc)
 az.plot_trace(idata)
 plt.tight_layout()
+
+
+# +
+def plot_hierarchical_model_index_and_theta(idata: az.InferenceData):
+    fig: plt.Figure = plt.figure(figsize=(8, 8))
+    gs = fig.add_gridspec(nrows=3, ncols=2)
+
+    posterior = idata['posterior']
+
+    # Model index.
+    m = posterior['m'].values.flatten()
+    p0 = np.sum(m == 0) / m.size
+    p1 = np.sum(m == 1) / m.size
+
+    ax = fig.add_subplot(gs[0, :])
+    az.plot_posterior(m, hdi_prob=.95, point_estimate='mean', ax=ax)
+    ax.set_title('Model Index. '
+                 f'$p(m=0|D) = {p0:.3f}, p(m=1|D) = {p1:.3f}$')
+    ax.set_xlabel('m')
+
+    # theta0 when m = 0 (posterior distribution).
+    theta0 = posterior['theta0'].values.flatten()
+    theta0_m0 = theta0[m == 0]
+    ax = fig.add_subplot(gs[1, 0])
+    az.plot_posterior(theta0_m0, hdi_prob=.95, point_estimate='mode', ax=ax)
+    ax.set_title('$\\theta_0$'
+                 'when m = 0 (using true prior)')
+    ax.set_xlabel('$\\theta_0$')
+
+    # theta0 when m = 1 (prior distribution).
+    theta0_m1 = theta0[m == 1]
+    ax = fig.add_subplot(gs[2, 0])
+    az.plot_posterior(theta0_m1, hdi_prob=.95, point_estimate='mode', ax=ax)
+    ax.set_title('$\\theta_0$'
+                 'when m = 1; pseudo prior')
+    ax.set_xlabel('$\\theta_0$')
+
+    # theta1 when m = 0 (prior distribution).
+    theta1 = posterior['theta1'].values.flatten()
+    theta1_m0 = theta1[m == 0]
+    ax = fig.add_subplot(gs[1, 1])
+    az.plot_posterior(theta1_m0, hdi_prob=.95, point_estimate='mode', ax=ax)
+    ax.set_title('$\\theta_1$'
+                 'when m = 0; pseudo prior')
+    ax.set_xlabel('$\\theta_1$')
+
+    # theta1 when m = 1 (posterior distribution).
+    theta1_m1 = theta1[m == 1]
+    ax = fig.add_subplot(gs[2, 1])
+    az.plot_posterior(theta1_m1, hdi_prob=.95, point_estimate='mode', ax=ax)
+    ax.set_title('$\\theta_1$'
+                 'when m = 1 (using true prior)')
+    ax.set_xlabel('$\\theta_1$')
+
+    fig.tight_layout()
+
+
+plot_hierarchical_model_index_and_theta(idata)
+# -
 
 # In this case, the MCMC runs just fine without pseudo-priors.
 # But you will see the problem in the model in chapter 12,
@@ -211,8 +277,8 @@ def model_hier_pseudo_priors(y: jnp.ndarray):
     m = numpyro.sample('m', dist.Categorical(model_prior))
 
     # Specify prior for theta0.
-    omega0 = jnp.r_[.25, .45]  # (true, pseudo)
-    kappa0 = jnp.r_[12, 21]  # (true, pseudo)
+    omega0 = jnp.r_[.1, .4]  # (true, pseudo)
+    kappa0 = jnp.r_[20, 50]  # (true, pseudo)
     theta0 = numpyro.sample(
         'theta0', dist_utils.beta_dist_from_omega_kappa(omega0[m], kappa0[m]))
 
@@ -231,11 +297,11 @@ def model_hier_pseudo_priors(y: jnp.ndarray):
         numpyro.sample('y', dist.Bernoulli(theta), obs=y[idx])
 
 
-kernel = DiscreteHMCGibbs(NUTS(model_hier_2))
+kernel = DiscreteHMCGibbs(NUTS(model_hier_pseudo_priors))
 mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(
     random.PRNGKey(0),
-    y=jnp.r_[jnp.zeros(3), jnp.ones(6)],
+    y=y,
 )
 mcmc.print_summary()
 # -
@@ -243,3 +309,5 @@ mcmc.print_summary()
 idata = az.from_numpyro(mcmc)
 az.plot_trace(idata)
 plt.tight_layout()
+
+plot_hierarchical_model_index_and_theta(idata)
