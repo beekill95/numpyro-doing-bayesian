@@ -157,6 +157,7 @@ fig.tight_layout()
 # -
 
 # #### Using pseudo-priors to reduce autocorrelation
+# ##### Without Pseudo-Priors
 
 # +
 def model_hier_2(y: jnp.ndarray):
@@ -175,6 +176,55 @@ def model_hier_2(y: jnp.ndarray):
 
     # Theta will be based on how the m is.
     theta = numpyro.deterministic('theta', jnp.where(m == 0, theta0, theta1))
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        numpyro.sample('y', dist.Bernoulli(theta), obs=y[idx])
+
+
+kernel = DiscreteHMCGibbs(NUTS(model_hier_2))
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.r_[jnp.zeros(3), jnp.ones(6)],
+)
+mcmc.print_summary()
+# -
+
+idata = az.from_numpyro(mcmc)
+az.plot_trace(idata)
+plt.tight_layout()
+
+# In this case, the MCMC runs just fine without pseudo-priors.
+# But you will see the problem in the model in chapter 12,
+# hence explains the use of pseudo-priors in that model.
+
+
+# ##### With Pseudo-Priors
+
+# +
+def model_hier_pseudo_priors(y: jnp.ndarray):
+    nb_obs = y.shape[0]
+
+    # Specify prior for model index.
+    model_prior = jnp.array([0.5, 0.5])
+    m = numpyro.sample('m', dist.Categorical(model_prior))
+
+    # Specify prior for theta0.
+    omega0 = jnp.r_[.25, .45]  # (true, pseudo)
+    kappa0 = jnp.r_[12, 21]  # (true, pseudo)
+    theta0 = numpyro.sample(
+        'theta0', dist_utils.beta_dist_from_omega_kappa(omega0[m], kappa0[m]))
+
+    # Specify prior for theta1.
+    # Also, notices that the position of true and pseudo priors have changed.
+    omega1 = jnp.r_[.7, .9]  # (pseudo, true)
+    kappa1 = jnp.r_[50, 20]  # (pseudo, true)
+    theta1 = numpyro.sample(
+        'theta1', dist_utils.beta_dist_from_omega_kappa(omega1[m], kappa1[m]))
+
+    # Theta depends on model index.
+    theta = jnp.where(m == 0, theta0, theta1)
 
     # Observations.
     with numpyro.plate('obs', nb_obs) as idx:
