@@ -89,13 +89,6 @@ print(1. / one_over_pD)
 
 # ### Hierarchical MCMC Computation of Relative Model Probability
 
-# Data
-
-N = 30
-z = int(np.ceil(N * .55))
-y = jnp.r_[jnp.zeros(N - z), jnp.ones(z)]
-
-
 # +
 def model_hier(y: jnp.ndarray):
     nb_obs = y.shape[0]
@@ -118,7 +111,7 @@ kernel = DiscreteHMCGibbs(NUTS(model_hier))
 mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=4)
 mcmc.run(
     random.PRNGKey(0),
-    y=y,
+    y=jnp.r_[jnp.zeros(3), jnp.ones(6)],
 )
 mcmc.print_summary()
 # -
@@ -159,12 +152,18 @@ ax.set_title(f'$\\theta_{{m = 1}}. p(m = 1| D) = {p_m_1:.3f}$')
 ax.set_xlabel('$\\theta$')
 
 fig.tight_layout()
-
-
 # -
+
 
 # #### Using pseudo-priors to reduce autocorrelation
 # ##### Without Pseudo-Priors
+
+# Data
+
+N = 30
+z = int(np.ceil(N * .55))
+y = jnp.r_[jnp.zeros(N - z), jnp.ones(z)]
+
 
 # +
 def model_hier_2(y: jnp.ndarray):
@@ -201,6 +200,44 @@ mcmc.print_summary()
 idata = az.from_numpyro(mcmc)
 az.plot_trace(idata)
 plt.tight_layout()
+
+
+# +
+def plot_diagnostic(data, last_iterations=15000):
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 6))
+    if data.ndim > 1:
+        data = data.flatten()
+
+    # Plot trace.
+    ax = axes[0, 0]
+    ax.plot(np.arange(last_iterations), data[-last_iterations:])
+    ax.set_xlabel('Iterations')
+    ax.set_ylabel('Param. Value')
+
+    # Plot autocorrelation.
+    ax = axes[0, 1]
+    az.plot_autocorr(data, ax=ax)
+    ax.set_title('')
+    ax.set_xlabel('Lag')
+    ax.set_ylabel('Autocorrelation')
+
+    # Plot shrink factor.
+    ax = axes[1, 0]
+    # TODO
+    ax.set_xlabel('last iterations in chain')
+    ax.set_ylabel('shrink factor')
+
+    # Plot posterior.
+    ax = axes[1, 1]
+    az.plot_posterior(data, ax=ax)
+    ax.set_title('')
+    ax.set_xlabel('Param. Value')
+    ax.set_ylabel('Density')
+
+    fig.tight_layout()
+
+
+plot_diagnostic(idata['posterior']['m'].values)
 
 
 # +
@@ -309,5 +346,7 @@ mcmc.print_summary()
 idata = az.from_numpyro(mcmc)
 az.plot_trace(idata)
 plt.tight_layout()
+
+plot_diagnostic(idata['posterior']['m'].values)
 
 plot_hierarchical_model_index_and_theta(idata)
