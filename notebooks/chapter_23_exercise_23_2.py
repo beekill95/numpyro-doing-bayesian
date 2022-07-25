@@ -133,3 +133,18 @@ ax.set_xlabel('Threshold')
 ax.set_ylabel('Mean Threshold')
 
 fig.tight_layout()
+# -
+
+# ## (B) Thresholded cummulative-$t$-distribution model
+
+kernel = NUTS(glm_ordinal.yord_metric_predictors_robust_t_dist,
+              init_strategy=init_to_median,
+              target_accept_prob=.95)
+mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=1)
+mcmc.run(
+    random.PRNGKey(0),
+    y=jnp.array(movies_df['Rating'].cat.codes.values),
+    x=jnp.array(movies_df[['Year', 'Length']].values),
+    K=rating_cat.categories.size,
+)
+mcmc.print_summary()

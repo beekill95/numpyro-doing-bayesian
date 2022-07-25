@@ -202,3 +202,56 @@ def yord_metric_predictors_robust_guessing(y: jnp.ndarray, x: jnp.ndarray, K: in
     # Transform back to b.
     numpyro.deterministic('b', a / x_sds)
     numpyro.deterministic('b0', a0 - jnp.sum(a * x_means / x_sds))
+
+
+def yord_metric_predictors_robust_t_dist(y: jnp.ndarray, x: jnp.ndarray, K: int):
+    """
+    Probit regression model as described in chapter 23, section 23.4.
+    """
+    assert y.shape[0] == x.shape[0]
+    assert x.ndim == 2
+
+    nb_obs = y.shape[0]
+    nb_preds = x.shape[1]
+
+    # Data statistics.
+    x_means = jnp.mean(x, axis=0)
+    x_sds = jnp.std(x, axis=0)
+    xz = (x - x_means) / x_sds
+
+    # Prior for intercept and coefficients.
+    a0 = numpyro.sample('_a0', dist.Normal((K + 1.) / 2, K))
+    a = numpyro.sample('_a', dist.Normal(0, K).expand([nb_preds]))
+
+    # Latent mean, sigma and normality parameter.
+    mu = numpyro.deterministic('mu', a0 + jnp.dot(xz, a))
+    sigma = numpyro.sample('sigma', dist.Uniform(K / 1000, K * 10))
+    nu = numpyro.sample('nu', dist.Exponential(1. / 30))
+    score = dist.StudentT(nu, mu[:, None], sigma)
+
+    # Specify the thresholds.
+    thres = jnp.array([
+        numpyro.deterministic('thres_1', jnp.array(1.5)),
+        *[numpyro.sample(f'thres_{i + 1}', dist.Normal(i + 1.5, 2))
+          for i in range(1, K - 2)],
+        numpyro.deterministic(f'thres_{K - 1}', jnp.array(K - 0.5)),
+    ])
+    cdf = score.cdf(thres[None, :])
+    cdf = jnp.c_[
+        jnp.repeat(jnp.array([0.]), nb_obs),
+        cdf,
+        jnp.repeat(jnp.array([1.]), nb_obs),
+    ]
+
+    # Probability.
+    probs = jnp.diff(cdf, axis=-1)
+    probs = jnp.maximum(probs, 0.)
+    probs = probs / jnp.sum(probs, axis=1, keepdims=True)
+
+    # Observations.
+    with numpyro.plate('obs', nb_obs) as idx:
+        numpyro.sample('y', dist.Categorical(probs[idx]), obs=y[idx])
+
+    # Transform back to b.
+    numpyro.deterministic('b', a / x_sds)
+    numpyro.deterministic('b0', a0 - jnp.sum(a * x_means / x_sds))
