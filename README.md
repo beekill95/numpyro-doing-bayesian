@@ -22,7 +22,7 @@ Suggestions for improvement are welcome!
     * [Exercise 21.3: Heterogeneous Concentration Parameters](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_21_exercise_21_3)
 * [Chapter 22: Nominal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_22)
 * [Chapter 23: Ordinal Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_23)
-    * Exercise 23.2: Handle Outliers
+    * [Exercise 23.2: Handle Outliers](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_23_exercise_23_2)
 * [Chapter 24: Count Predicted Variable](https://www.nguyenmbquan.space/numpyro-doing-bayesian/chapter_24)
 
 ## Dependencies
