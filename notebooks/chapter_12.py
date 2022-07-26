@@ -2,6 +2,7 @@
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:light
+#     notebook_metadata_filter: title, author
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -11,6 +12,7 @@
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
+#   title: '[Doing Bayesian Data Analysis] Chapter 12: Bayesian Approaches to Testing a Point ("Null") Hypothesis'
 # ---
 
 # %cd ..

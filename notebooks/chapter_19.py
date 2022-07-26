@@ -2,6 +2,7 @@
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:light
+#     notebook_metadata_filter: title, author
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -11,6 +12,7 @@
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
+#   title: '[Doing Bayesian Data Analysis] Chapter 19: Metric Predicted Variable with One Nominal Predictor'
 # ---
 
 # %cd ..
@@ -19,7 +21,6 @@
 
 # +
 import arviz as az
-from functools import reduce
 import jax.numpy as jnp
 import jax.random as random
 import matplotlib.pyplot as plt

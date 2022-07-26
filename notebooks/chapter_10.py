@@ -2,6 +2,7 @@
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:light
+#     notebook_metadata_filter: title, author
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -11,6 +12,7 @@
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
+#   title: '[Doing Bayesian Data Analysis] Chapter 10: Model Comparison and Hierarchical Modeling'
 # ---
 
 # %cd ..
@@ -29,8 +31,6 @@ import numpyro
 import numpyro.distributions as dist
 import numpyro_glm.utils.dist as dist_utils
 from numpyro.infer import MCMC, NUTS, DiscreteHMCGibbs
-import pandas as pd
-import seaborn as sns
 
 numpyro.set_host_device_count(4)
 # -

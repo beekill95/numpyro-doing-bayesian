@@ -2,6 +2,7 @@
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:light
+#     notebook_metadata_filter: title, author
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -11,6 +12,7 @@
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
+#   title: '[Doing Bayesian Data Analysis] Chapter 20: Metric Predicted Variable with Multiple Nominal Predictors'
 # ---
 
 # %cd ..
@@ -24,7 +26,6 @@ import jax.random as random
 import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
-from numpyro.infer import MCMC, NUTS, HMC, SA
 from numpyro.infer.initialization import init_to_median
 import numpyro_glm.metric.models as glm_metric
 import pandas as pd
