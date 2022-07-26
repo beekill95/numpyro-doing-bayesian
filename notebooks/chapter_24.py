@@ -2,6 +2,7 @@
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:light
+#     notebook_metadata_filter: title, author
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -11,6 +12,7 @@
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
+#   title: '[Doing Bayesian Data Analysis] Chapter 24: Count Predicted Variable'
 # ---
 
 # %cd ..
@@ -22,14 +24,10 @@ import arviz as az
 import jax.numpy as jnp
 import jax.random as random
 import matplotlib.pyplot as plt
-import numpy as np
 import numpyro
 from numpyro.infer import MCMC, NUTS
-from numpyro.infer.initialization import init_to_median
 import numpyro_glm.count.models as glm_count
-import numpyro_glm.ordinal.plots as ordinal_plots
 import pandas as pd
-import seaborn as sns
 
 numpyro.set_host_device_count(4)
 # -
@@ -65,7 +63,7 @@ idata = az.from_numpyro(
         b1b2=['Eye', 'Hair'],
         P=['Eye', 'Hair'],
         P_x1=['Eye'], P_x2=['Hair'])
-    )
+)
 az.plot_trace(idata, ['b1', 'b2', 'b1b2'])
 plt.tight_layout()
 
