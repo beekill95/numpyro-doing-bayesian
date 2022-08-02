@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpyro
 from numpyro.infer.initialization import init_to_median
+from numpyro.infer import NUTS, MCMC
 import numpyro_glm.metric.models as glm_metric
 import pandas as pd
 import seaborn as sns
