@@ -2,6 +2,7 @@
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:light
+#     notebook_metadata_filter: title, author
 #     text_representation:
 #       extension: .py
 #       format_name: light
@@ -11,6 +12,7 @@
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
+#   title: '[Doing Bayesian Data Analysis] Exercise 23.2'
 # ---
 
 # %cd ..
@@ -135,16 +137,39 @@ ax.set_ylabel('Mean Threshold')
 fig.tight_layout()
 # -
 
+# __Is there anything unusual about the posterior distribution on the thresholds, and why?__
+# Some sampled values of the thresholds are inverted
+# (smaller thresholds have values larger than larger thresholds,
+# for instance, the last two thresholds in the figure above).
+# This is because when those values are sampled,
+# in this model,
+# the probability of a category will still be larger than zero because of the guessing distribution.
+# However, for the normal model (without the guessing parameter),
+# those values are not valid and not shown in the resulting chains.
+
 # ## (B) Thresholded cummulative-$t$-distribution model
 
-kernel = NUTS(glm_ordinal.yord_metric_predictors_robust_t_dist,
-              init_strategy=init_to_median,
-              target_accept_prob=.95)
-mcmc = MCMC(kernel, num_warmup=1000, num_samples=20000, num_chains=1)
-mcmc.run(
-    random.PRNGKey(0),
-    y=jnp.array(movies_df['Rating'].cat.codes.values),
-    x=jnp.array(movies_df[['Year', 'Length']].values),
-    K=rating_cat.categories.size,
-)
-mcmc.print_summary()
+# +
+# WIP: in order for this model to work,
+# `betainc` function of jax has to have gradient w.r.t to its parameters
+# (https://github.com/pyro-ppl/numpyro/issues/1452).
+# kernel = NUTS(glm_ordinal.yord_metric_predictors_robust_t_dist,
+#               init_strategy=init_to_median,
+#               target_accept_prob=.90)
+# mcmc = MCMC(kernel, num_warmup=1000, num_samples=1000, num_chains=1)
+# mcmc.run(
+#     random.PRNGKey(0),
+#     y=jnp.array(movies_df['Rating'].cat.codes.values),
+#     x=jnp.array(movies_df[['Year', 'Length']].values),
+#     K=rating_cat.categories.size,
+# )
+# mcmc.print_summary()
+
+# +
+# idata_t_dist = az.from_numpyro(
+#     mcmc,
+#     coords=dict(pred=['Year', 'Length']),
+#     dims=dict(b=['pred'])
+# )
+# az.plot_trace(idata_t_dist, '~mu')
+# plt.tight_layout()
