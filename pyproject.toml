@@ -16,6 +16,7 @@ arviz = "^0.12.1"
 scipy = "^1.10"
 funsor = "^0.4.3"
 seaborn = "^0.11.2"
+doit = "^0.36.0"
 
 [tool.poetry.dev-dependencies]
 autopep8 = "^1.6.0"
