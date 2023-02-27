@@ -31,7 +31,7 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
-        python-version: 3.10
+        python-version: "3.10"
     - name: Set up Poetry
       uses: Gr1N/setup-poetry@v8
     - name: Add conda to system path
