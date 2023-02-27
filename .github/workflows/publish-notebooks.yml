@@ -28,10 +28,12 @@ jobs:
         git config user.name "Github Actions Bot"
         git config user.email ""
         git merge main
-    - name: Set up Python 3.7
+    - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
-        python-version: 3.7
+        python-version: "3.10"
+    - name: Set up Poetry
+      uses: Gr1N/setup-poetry@v8
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
