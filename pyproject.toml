@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "numpyo_glm"
+name = "numpyro_glm"
 version = "0.1.0"
 description = ""
 authors = ["beekill <nguyenmbquan95@gmail.com>"]
