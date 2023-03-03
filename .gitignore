@@ -130,3 +130,5 @@ dmypy.json
 
 # Jupyter notebooks.
 *.ipynb
+docs
+.doit.db.db
