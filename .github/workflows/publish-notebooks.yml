@@ -43,16 +43,14 @@ jobs:
         conda env update --file environment.yml --name base
         poetry config virtualenvs.create false
         poetry install
-    - name: Convert py scripts to notebooks and execute
-      run: chmod u+x .github/workflows/build_notebooks.sh && .github/workflows/build_notebooks.sh
     - name: Publish notebooks to html
       run: |
         mkdir -p docs
-        jupyter nbconvert --to html --embed-images --no-prompt --template .github/workflows/notebookHtml --output-dir='./docs' notebooks/*.ipynb
+        doit publish
     - name: Publish
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: Build and publish notebooks ${{ steps.date.outputs.date }}
+        commit_message: "Build, publish notebooks ${{ steps.date.outputs.date }} and store doit db."
         branch: publish
-        file_pattern: docs/* notebooks/*
+        file_pattern: docs/* notebooks/* .doit.db.db
         add_options: '-f'
