@@ -52,5 +52,5 @@ jobs:
       with:
         commit_message: "Build, publish notebooks ${{ steps.date.outputs.date }} and store doit db."
         branch: publish
-        file_pattern: docs/* notebooks/* .doit.db.db
+        file_pattern: docs/* notebooks/*
         add_options: '-f'
