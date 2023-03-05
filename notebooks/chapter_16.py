@@ -38,10 +38,10 @@ from scipy.stats import norm, t
 
 # ### Metric Model
 
-numpyro.render_model(
-    glm_metric.one_group,
-    model_args=(jnp.ones(5), ),
-    render_params=True)
+# numpyro.render_model(
+#     glm_metric.one_group,
+#     model_args=(jnp.ones(5), ),
+#     render_params=True)
 
 # ### Synthesis data
 
@@ -108,10 +108,10 @@ fig = plots.plot_st(
 
 # ### Robust Metric Model
 
-numpyro.render_model(
-    glm_metric.one_group_robust,
-    model_args=(jnp.ones(5),),
-    render_params=True)
+# numpyro.render_model(
+#     glm_metric.one_group_robust,
+#     model_args=(jnp.ones(5),),
+#     render_params=True)
 
 # ### Synthesis Data
 

@@ -7,7 +7,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.13.8
+#       jupytext_version: 1.14.5
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -151,7 +151,7 @@ spend_hdis = az.hdi(spend_slopes, hdi_prob=0.95)
 spend_medians = np.median(spend_slopes, axis=0)
 
 ax.errorbar(percent_take, spend_medians,
-            yerr=spend_hdis[:, 0] - spend_hdis[:, 1], fmt='o', label='Spend Slope Median')
+            yerr=spend_hdis[:, 1] - spend_hdis[:, 0], fmt='o', label='Spend Slope Median')
 ax.set_title('Spend Slope vs. Percent Take')
 ax.set_xlabel('Percent Take')
 ax.set_ylabel('Spend Slope')
@@ -166,7 +166,7 @@ prcnt_hdis = az.hdi(prcnt_slopes, hdi_prob=0.95)
 prcnt_medians = np.median(prcnt_slopes, axis=0)
 
 ax.errorbar(spend, prcnt_medians,
-            yerr=prcnt_hdis[:, 0] - prcnt_hdis[:, 1], fmt='o', label='Percent Take Slope Median')
+            yerr=prcnt_hdis[:, 1] - prcnt_hdis[:, 0], fmt='o', label='Percent Take Slope Median')
 ax.set_title('Percent Take Slope vs. Spend')
 ax.set_xlabel('Spend')
 ax.set_ylabel('Percent Take Slope')
